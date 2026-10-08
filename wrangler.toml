@@ -1,0 +1,39 @@
+# LOCAL ONLY. Remote environments deliberately have no DB binding until provisioned.
+name = "cafe-admin-local"
+main = "src/server/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/api", "/api/*", "/auth", "/auth/*"]
+not_found_handling = "single-page-application"
+
+[vars]
+APP_ENV = "local"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cafe-admin-local"
+# Local identifier, not a remote account/database UUID.
+database_id = "local-only"
+migrations_dir = "migrations"
+remote = false
+
+[env.test]
+name = "cafe-admin-test"
+workers_dev = false
+preview_urls = false
+d1_databases = []
+[env.test.vars]
+APP_ENV = "test"
+
+[env.production]
+name = "cafe-admin-production"
+workers_dev = false
+preview_urls = false
+d1_databases = []
+[env.production.vars]
+APP_ENV = "production"

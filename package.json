@@ -9,17 +9,27 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:browser": "playwright test",
     "format": "prettier --write src tests index.html package.json tsconfig.json playwright.config.ts",
-    "check": "pnpm test && pnpm build && pnpm test:browser"
+    "check": "pnpm test && pnpm build && pnpm test:browser",
+    "test:server": "node --experimental-strip-types --test tests/server/*.test.mjs",
+    "test:d1": "node --experimental-strip-types --test tests/server/*.d1.mjs",
+    "dev:worker": "pnpm build && wrangler dev --local --persist-to /tmp/cafe-admin-w04-local",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --persist-to /tmp/cafe-admin-w04-local",
+    "check:backend": "pnpm test && pnpm test:server && pnpm test:d1 && pnpm build && pnpm test:worker && pnpm build:worker",
+    "build:worker": "wrangler deploy --dry-run --env=\"\" --outdir /tmp/cafe-admin-w04-worker",
+    "test:worker": "node --experimental-strip-types --test tests/server/*.integration.mjs"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261007.1",
     "@playwright/test": "^1.63.0",
+    "miniflare": "5.20261006.0-alpha",
     "prettier": "^3.9.9",
     "typescript": "^7.0.2",
-    "vite": "^8.3.3"
+    "vite": "^8.3.3",
+    "wrangler": "^4.148.0"
   }
 }

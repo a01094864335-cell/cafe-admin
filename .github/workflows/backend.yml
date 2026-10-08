@@ -1,0 +1,37 @@
+name: Backend foundation
+on:
+  pull_request:
+  push:
+    branches: [main, "codex/cloud-*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  required-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm check:backend
+      - name: Verify empty local D1 migration and no-op reapply
+        run: |
+          pnpm exec wrangler d1 migrations apply DB --local --persist-to "$RUNNER_TEMP/cafe-w04-migrations"
+          pnpm exec wrangler d1 migrations apply DB --local --persist-to "$RUNNER_TEMP/cafe-w04-migrations"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-static-assets
+          path: dist/
+          retention-days: 7
