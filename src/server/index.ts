@@ -1,3 +1,8 @@
+import { summaryRoute } from "./routes/summary.ts";
+import { payrollRoute } from "./routes/payroll.ts";
+import { workRoute } from "./routes/work.ts";
+import { inventoryRoute } from "./routes/inventory.ts";
+import { ledgerRoute } from "./routes/ledger.ts";
 import type { Env } from "./env.ts";
 import { HttpError } from "./http.ts";
 import { authRoute } from "./auth/routes.ts";
@@ -13,6 +18,11 @@ export default {
         (await authRoute(request, env, requestId)) ??
         (await cafeRoute(request, env, requestId)) ??
         (await invitationRoute(request, env, requestId)) ??
+        (await ledgerRoute(request, env, requestId)) ??
+        (await inventoryRoute(request, env, requestId)) ??
+        (await workRoute(request, env, requestId)) ??
+        (await payrollRoute(request, env, requestId)) ??
+        (await summaryRoute(request, env, requestId)) ??
         Response.json(
           {
             error: {
@@ -29,7 +39,16 @@ export default {
       const status = error instanceof HttpError ? error.status : 500,
         code = error instanceof HttpError ? error.code : "INTERNAL_ERROR";
       return Response.json(
-        { error: { code, message: code }, requestId },
+        {
+          error: {
+            code,
+            message: code,
+            ...(error instanceof HttpError && error.details
+              ? { details: error.details }
+              : {}),
+          },
+          requestId,
+        },
         {
           status,
           headers: {

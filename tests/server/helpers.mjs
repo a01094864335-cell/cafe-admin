@@ -12,6 +12,10 @@ export async function database(t) {
   );
   t.after(() => mf.dispose());
   const db = await mf.getD1Database("DB");
+  await migrate(db);
+  return db;
+}
+export async function migrate(db) {
   for (const name of (
     await readdir(new URL("../../migrations/", import.meta.url))
   )
@@ -28,7 +32,6 @@ export async function database(t) {
       .replace(/\n/g, " ");
     await db.exec(sql);
   }
-  return db;
 }
 export const stmt = (db, sql, ...values) =>
   values.length ? db.prepare(sql).bind(...values) : db.prepare(sql);

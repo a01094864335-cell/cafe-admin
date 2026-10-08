@@ -31,6 +31,12 @@ export async function authRoute(
     path = url.pathname;
   if (path === "/auth/google/start" && request.method === "GET") {
     const { redirectUri } = config(env);
+    const invite = url.searchParams.get("invite");
+    if (
+      url.searchParams.getAll("invite").length > 1 ||
+      (invite !== null && !/^[A-Za-z0-9_-]{43}$/.test(invite))
+    )
+      fail(400, "VALIDATION_ERROR");
     const state = randomToken(),
       browser = randomToken(),
       nonce = randomToken(),
@@ -57,7 +63,10 @@ export async function authRoute(
       code_challenge: await hash(verifier),
       code_challenge_method: "S256",
     }).toString();
-    return redirect(target.href, [cookieHeader("__Host-oauth", browser, 600)]);
+    return redirect(target.href, [
+      cookieHeader("__Host-oauth", browser, 600),
+      cookieHeader("__Host-invite", invite ?? "", invite ? 600 : 0),
+    ]);
   }
   if (path === "/auth/google/callback" && request.method === "GET") {
     const { base, redirectUri } = config(env),
@@ -119,11 +128,16 @@ export async function authRoute(
         ).bind(now(), await hash(old)),
       );
     await env.DB.batch(statements);
-    return redirect(base + "/", [
-      cookieHeader("__Host-oauth", "", 0),
-      cookieHeader("__Host-session", token, 604800),
-      cookieHeader("__Host-csrf", csrfToken, 604800, false),
-    ]);
+    const invite = cookie(request, "__Host-invite");
+    return redirect(
+      base + "/cloud.html" + (invite ? "#invite=" + invite : ""),
+      [
+        cookieHeader("__Host-invite", "", 0),
+        cookieHeader("__Host-oauth", "", 0),
+        cookieHeader("__Host-session", token, 604800),
+        cookieHeader("__Host-csrf", csrfToken, 604800, false),
+      ],
+    );
   }
   if (path === "/api/v1/me" && request.method === "GET") {
     const actor = await authenticate(request, env);
@@ -131,6 +145,10 @@ export async function authRoute(
     return json(
       {
         id: actor.userId,
+        canCreateCafe: (env.CAFE_CREATOR_IDS ?? "")
+          .split(",")
+          .map((v) => v.trim())
+          .includes(actor.userId),
         name: actor.name,
         email: actor.email,
         csrfToken:

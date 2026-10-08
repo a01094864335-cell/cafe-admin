@@ -1,0 +1,392 @@
+:root {
+  font-family:
+    Inter,
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #24392e;
+  background: #f5f6f2;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+.button {
+  background: #244d3d;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+a {
+  color: #245d43;
+}
+button.secondary {
+  background: #fff;
+  border-color: #d5ddd5;
+  color: #344e3f;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+aside {
+  padding: 30px 22px;
+  background: #fff;
+  border-right: 1px solid #e0e5de;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 32px;
+}
+.brand small {
+  display: block;
+  font-size: 11px;
+  color: #788778;
+  margin-top: 5px;
+  font-weight: 400;
+}
+.mark {
+  background: #244d3d;
+  color: white;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 32px;
+  font-family: Georgia, serif;
+}
+label {
+  font-size: 13px;
+  color: #57665d;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+select,
+input {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #d5ddd5;
+  border-radius: 7px;
+  background: #fff;
+  color: #253d2e;
+  min-width: 0;
+}
+input:focus,
+select:focus {
+  outline: 2px solid #8bbca1;
+  outline-offset: 2px;
+}
+#role {
+  font-size: 12px;
+  color: #587663;
+  margin: 0 0 15px;
+}
+nav {
+  display: grid;
+  gap: 7px;
+}
+nav button {
+  text-align: left;
+  background: transparent;
+  color: #5d7064;
+}
+nav button.selected {
+  background: #e9f0e8;
+  color: #214c35;
+}
+.aside-bottom {
+  margin-top: auto;
+  display: grid;
+  gap: 13px;
+  font-size: 13px;
+  padding-top: 32px;
+}
+main {
+  padding: 40px;
+  max-width: 1500px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #7d8d7d;
+  font-weight: 700;
+}
+h1 {
+  font-size: 30px;
+  letter-spacing: -1px;
+  margin: 10px 0;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 18px;
+}
+#status {
+  min-height: 22px;
+  font-size: 13px;
+  color: #587563;
+  margin-bottom: 22px;
+}
+.error {
+  color: #b74835 !important;
+}
+.card {
+  background: #fff;
+  border: 1px solid #dfe5dc;
+  border-radius: 14px;
+  padding: 26px;
+  margin-bottom: 24px;
+}
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.section-head > span {
+  font-size: 12px;
+  color: #869184;
+}
+form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.wide {
+  grid-column: span 3;
+}
+.form-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 15px;
+}
+.filters input {
+  padding: 7px;
+}
+.table-scroll {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  white-space: nowrap;
+}
+th {
+  font-weight: 500;
+  color: #7a897b;
+  background: #f7f9f5;
+}
+th,
+td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e8ece5;
+}
+td:nth-child(5) {
+  white-space: normal;
+  min-width: 150px;
+}
+.text-button {
+  background: none;
+  padding: 4px 8px;
+  color: #3b7250;
+  font-size: 12px;
+}
+.danger {
+  color: #ad5547;
+}
+.empty {
+  text-align: center;
+  color: #84917e;
+  padding: 45px 10px;
+}
+.members {
+  padding: 0;
+  list-style: none;
+}
+.members li {
+  display: flex;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e8ece5;
+  font-size: 13px;
+}
+.members b {
+  margin-left: auto;
+  font-weight: 500;
+}
+.login {
+  max-width: 520px;
+  margin: 9vh auto;
+  text-align: center;
+  padding: 45px;
+}
+.login .mark {
+  margin: 0 auto 25px;
+}
+.login h1 {
+  font-size: 40px;
+  line-height: 1.4;
+}
+.login p {
+  line-height: 1.8;
+  color: #758575;
+}
+.login .button {
+  display: block;
+  margin: 35px 0;
+  padding: 15px;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  aside {
+    padding: 18px;
+    border-right: 0;
+    border-bottom: 1px solid #dfe5dc;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .brand {
+    margin: 0;
+    grid-column: span 2;
+  }
+  aside > label,
+  #role {
+    display: none;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: span 2;
+  }
+  .aside-bottom {
+    display: flex;
+    padding: 0;
+    grid-column: span 2;
+    align-items: center;
+  }
+  .aside-bottom a {
+    margin-left: auto;
+  }
+  main {
+    padding: 22px 15px;
+  }
+  h1 {
+    font-size: 25px;
+  }
+  .card {
+    padding: 18px;
+  }
+  form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wide {
+    grid-column: span 2;
+  }
+  .form-actions {
+    grid-column: span 2;
+  }
+  .section-head {
+    display: block;
+  }
+  .filters {
+    flex-wrap: wrap;
+  }
+  .section-head > span {
+    display: block;
+    margin-bottom: 15px;
+  }
+  .members li {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .members b {
+    margin-left: 0;
+  }
+  .members span {
+    width: 100%;
+  }
+}
+
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d5ddd5;
+  border-radius: 7px;
+  resize: vertical;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+.summary-grid span,
+.summary-grid strong {
+  display: block;
+}
+.summary-grid strong {
+  margin-top: 8px;
+  font-size: 22px;
+}
+details {
+  margin: 16px 0;
+}
+details li {
+  margin: 8px 0;
+}
+#employee-select,
+#payroll-employee {
+  margin-bottom: 20px;
+}
+#settings-list {
+  margin: 15px 0;
+}
