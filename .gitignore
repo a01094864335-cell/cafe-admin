@@ -1,5 +1,15 @@
 .DS_Store
-*.json
+node_modules/
+dist/
+playwright-report/
+test-results/
+.env*
+.dev.vars*
 *.xlsx
 *.csv
 *.zip
+# Keep real backups out; only synthetic fixtures are versioned.
+*.json
+!package.json
+!tsconfig.json
+!tests/fixtures/*.json

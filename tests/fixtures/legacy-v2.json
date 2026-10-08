@@ -1,0 +1,144 @@
+{
+  "version": 2,
+  "store": "가상 검증 카페",
+  "sales": [
+    {
+      "id": "sale-1",
+      "date": "2026-10-01",
+      "card": 100000,
+      "cash": 20000,
+      "transfer": null,
+      "note": "가상 매출"
+    },
+    {
+      "id": "sale-2",
+      "date": "2026-10-02",
+      "card": 0,
+      "cash": null,
+      "transfer": null,
+      "note": ""
+    },
+    {
+      "id": "sale-3",
+      "date": "2026-10-03",
+      "card": null,
+      "cash": null,
+      "transfer": null,
+      "note": "미입력 메모"
+    },
+    {
+      "id": "sale-4",
+      "date": "2026-10-04",
+      "card": -10000,
+      "cash": null,
+      "transfer": null,
+      "note": "가상 환불"
+    }
+  ],
+  "purchases": [
+    {
+      "id": "purchase-1",
+      "date": "2026-10-01",
+      "group": "월별 구매",
+      "vendor": "가상 공급처",
+      "item": "재료",
+      "amount": 30000,
+      "note": ""
+    },
+    {
+      "id": "purchase-2",
+      "date": "2026-10-02",
+      "group": "재료 외 지출",
+      "vendor": "가상 공급처",
+      "item": "소모품",
+      "amount": 5000,
+      "note": ""
+    },
+    {
+      "id": "purchase-3",
+      "date": "2026-10-03",
+      "group": "월별 구매",
+      "vendor": "가상 공급처",
+      "item": "환불",
+      "amount": -2000,
+      "note": ""
+    }
+  ],
+  "payroll": [
+    {
+      "id": "work-1",
+      "date": "2026-10-01",
+      "start": "09:00",
+      "end": "13:30",
+      "breakMinutes": 30,
+      "note": ""
+    },
+    {
+      "id": "work-2",
+      "date": "2026-10-02",
+      "start": "09:00",
+      "end": "10:01",
+      "breakMinutes": 0,
+      "note": ""
+    }
+  ],
+  "comparisons": {
+    "2026-10": {
+      "reported": 999999,
+      "note": "대조 전용"
+    }
+  },
+  "monthlyExtras": {
+    "2026-10": 1000
+  },
+  "weeks": {
+    "2026-09-28": {
+      "agreed": null,
+      "confirmation": "개근·재직 확인",
+      "note": "가상 확인"
+    }
+  },
+  "inventory": [
+    {
+      "id": "item-1",
+      "name": "가상 원두",
+      "qty": 2.5,
+      "min": 3,
+      "unit": "kg",
+      "cost": 10000,
+      "supplier": "가상 공급처"
+    }
+  ],
+  "checks": [],
+  "lastBackup": null,
+  "importedAt": null,
+  "sourceVersion": "public-v1",
+  "employment": {
+    "hireDate": "2026-09-01",
+    "weeklyHours": 20,
+    "holidayDay": "일",
+    "firstWeek": "2026-09-28",
+    "endDate": null,
+    "normalDays": 5.0,
+    "rates": {
+      "2026": 10000,
+      "2027": 11000
+    },
+    "start": "2026-10-01",
+    "end": "2027-09-30",
+    "threshold": 15.0,
+    "capHours": 8.0,
+    "maxWeekly": 40.0,
+    "averageWeeks": 4.0
+  },
+  "sourceControls": {},
+  "incomes": [
+    {
+      "id": "income-1",
+      "date": "2026-10-03",
+      "item": "가상 기타수익",
+      "amount": 3000,
+      "note": ""
+    }
+  ]
+}

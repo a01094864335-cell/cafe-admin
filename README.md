@@ -36,3 +36,34 @@
 - `README.md`: 사용 안내
 
 UI는 shadcn/ui 대시보드 구성을 참고한 독립 HTML 구현입니다.
+
+## 클라우드 전환 개발 (W01–W03)
+
+`main`의 단일 HTML을 계산·저장·화면 모듈로 분리하는 첫 단계입니다. 아직 Google 로그인이나 서버 공유 저장은 연결되지 않았으며, 개발 화면도 브라우저 로컬 저장을 사용합니다.
+
+Node.js 22.12 이상과 pnpm 11.19.0이 필요합니다. Node 24 LTS를 권장합니다. [Vite 개발 환경 안내](https://vite.dev/guide/)
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm test
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
+`pnpm preview`는 빌드한 화면을 로컬에서 확인합니다. `pnpm check`는 단위 테스트·빌드·브라우저 테스트를 순서대로 실행합니다. 설치된 Chrome으로 검증하려면 `PLAYWRIGHT_CHANNEL=chrome pnpm test:browser`를 사용할 수 있습니다. 모바일 검증은 브라우저의 기기 에뮬레이션입니다.
+
+| 위치 | 역할 |
+| --- | --- |
+| `index.html` | Vite 개발 진입점. 직접 파일로 열지 않고 `pnpm dev` 사용 |
+| `src/client/app.js`, `styles.css` | 기존 화면과 입력 처리 |
+| `src/client/data/` | 교체 가능한 로컬 저장 계층 |
+| `src/shared/` | 계산, 초기값, 백업 검증과 타입 |
+| `tests/` | 가상 자료, 원본 계산 비교, 저장 실패·브라우저 검증 |
+| `legacy/index.html` | 변경하지 않은 단일 HTML 원본, 기존 로컬 사용·비교 기준 |
+| `dist/` | 빌드 결과. 생성 파일이므로 Git에 넣지 않음 |
+
+기존 다운로드용 릴리스는 그대로 보존합니다. 이전처럼 설치 없이 실행하려면 릴리스 또는 `legacy/index.html`을 사용하세요. 기존 file URL과 개발 서버는 저장 위치가 다르므로 **기존 앱에서 백업한 JSON을 새 화면에서 복원**해야 합니다. 파일 이동으로 원래 저장값이 자동 이전되지는 않습니다.
+
+분석·규칙·검증 결과는 [기존 동작](docs/current-behavior.md), [데이터 모델](docs/data-model.md), [API 계약](docs/api-contract.md), [첫 단계 검증 보고서](docs/test-report-foundation.md)에 기록했습니다. 다음 단계는 W04의 Workers·D1·CI와 실패 시 전체 롤백 검증입니다.
