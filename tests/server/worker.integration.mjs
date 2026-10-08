@@ -52,18 +52,18 @@ test(
       headers: { "Sec-Fetch-Mode": "navigate" },
     });
     assert.equal(fallback.status, 200);
-    for (const path of [
-      "/api",
-      "/api/v1/cafes",
-      "/auth",
-      "/auth/google/start",
+    for (const [path, status, code] of [
+      ["/api", 404, "NOT_FOUND"],
+      ["/api/v1/cafes", 401, "UNAUTHENTICATED"],
+      ["/auth", 404, "NOT_FOUND"],
+      ["/auth/google/start", 503, "TEMPORARILY_UNAVAILABLE"],
     ]) {
       const response = await worker.fetch(path, {
         headers: { "Sec-Fetch-Mode": "navigate" },
       });
-      assert.equal(response.status, 404, path);
+      assert.equal(response.status, status, path);
       assert.match(response.headers.get("content-type"), /application\/json/);
-      assert.equal((await response.json()).error.code, "NOT_FOUND");
+      assert.equal((await response.json()).error.code, code);
     }
   },
 );
