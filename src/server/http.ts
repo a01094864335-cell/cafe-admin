@@ -1,4 +1,5 @@
 export class HttpError extends Error {
+  details?: unknown;
   status: number;
   code: string;
   constructor(status: number, code: string, message = code) {

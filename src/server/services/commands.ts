@@ -34,6 +34,7 @@ export function changed(env: Env, ids: string[]) {
 }
 export interface CommandPlan {
   cafeId: string;
+  bindCafeBeforeWrite?: boolean;
   statements: D1PreparedStatement[];
   assertionIds: string[];
   result: unknown;
@@ -47,7 +48,7 @@ export async function command(
   request: Request,
   payload: unknown,
   authorize: () => Promise<void>,
-  plan: () => Promise<CommandPlan>,
+  plan: (operationId: string) => Promise<CommandPlan>,
 ): Promise<unknown> {
   const key = request.headers.get("Idempotency-Key");
   if (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key))
@@ -76,8 +77,8 @@ export async function command(
   };
   const existing = await lookup();
   if (existing) return replay(existing);
-  const p = await plan(),
-    id = crypto.randomUUID(),
+  const id = crypto.randomUUID(),
+    p = await plan(id),
     ids = p.assertionIds;
   try {
     await atomicCafeBatch(
@@ -85,8 +86,15 @@ export async function command(
       p.cafeId,
       [
         env.DB.prepare(
-          "INSERT INTO commands(id,user_id,scope,key,payload_hash) VALUES (?,?,?,?,?)",
-        ).bind(id, actor.userId, scope, key, digest),
+          "INSERT INTO commands(id,user_id,scope,key,payload_hash,cafe_id) VALUES (?,?,?,?,?,?)",
+        ).bind(
+          id,
+          actor.userId,
+          scope,
+          key,
+          digest,
+          p.bindCafeBeforeWrite ? p.cafeId : null,
+        ),
         assertion(
           env,
           ids,
@@ -121,7 +129,10 @@ export async function command(
     await authorize();
     const row = await lookup();
     if (row) return replay(row);
-    if (error instanceof Error && /CHECK|UNIQUE/.test(error.message))
+    if (
+      error instanceof Error &&
+      /CHECK|UNIQUE|payroll_period_overlap/.test(error.message)
+    )
       fail(409, "VERSION_CONFLICT");
     throw error;
   }

@@ -26,6 +26,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm check:backend
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:cloud
       - name: Verify empty local D1 migration and no-op reapply
         run: |
           pnpm exec wrangler d1 migrations apply DB --local --persist-to "$RUNNER_TEMP/cafe-w04-migrations"
