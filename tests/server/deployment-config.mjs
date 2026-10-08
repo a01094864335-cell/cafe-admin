@@ -21,13 +21,29 @@ export function deploymentConfig(env, root = process.cwd()) {
     throw Error("Two distinct provisioned D1 IDs required");
   if (!name || !/^[a-zA-Z0-9_-]+$/.test(name))
     throw Error("Provisioned DB name required");
+  let origin;
+  try {
+    origin = new URL(env.APP_ORIGIN);
+  } catch {
+    throw Error("HTTPS application origin required");
+  }
+  if (origin.protocol !== "https:" || origin.origin !== env.APP_ORIGIN)
+    throw Error("Exact HTTPS origin required");
+  if (!env.GOOGLE_CLIENT_ID)
+    throw Error("Provisioned Google client ID required");
   return {
     name: `cafe-admin-${target}`,
     main: resolve(root, "src/server/index.ts"),
     compatibility_date: "2026-10-01",
     workers_dev: false,
     preview_urls: false,
-    vars: { APP_ENV: target },
+    vars: {
+      APP_ENV: target,
+      APP_ORIGIN: env.APP_ORIGIN,
+      GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
+      CAFE_CREATOR_IDS: env.CAFE_CREATOR_IDS ?? "",
+    },
+    observability: { enabled: false },
     assets: {
       directory: resolve(root, "dist"),
       binding: "ASSETS",

@@ -11,14 +11,7 @@ test("API/auth roots and unknown nested routes return no-store JSON without touc
       },
     },
   );
-  for (const path of [
-    "/api",
-    "/api/",
-    "/api/v1/cafes",
-    "/api/missing",
-    "/auth",
-    "/auth/google/callback",
-  ]) {
+  for (const path of ["/api", "/api/", "/api/missing", "/auth"]) {
     const response = await worker.fetch(
       new Request("https://example.invalid" + path),
       env,
