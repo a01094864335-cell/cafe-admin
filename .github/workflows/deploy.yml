@@ -1,0 +1,74 @@
+name: Explicit verified deployment
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Provisioned GitHub environment (requires deployment approval)"
+        type: choice
+        options: [test, production]
+        required: true
+      revision:
+        description: "Full 40-character commit SHA to verify and deploy"
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: deploy-${{ inputs.target }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+      REVISION: ${{ inputs.revision }}
+    steps:
+      - run: '[[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm check:backend
+  deploy:
+    needs: verify
+    # Repository switch starts absent/disabled. No PR or push can deploy.
+    if: vars.ENABLE_CLOUDFLARE_DEPLOY == 'true'
+    environment: ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build
+      - name: Create isolated configuration from provisioned environment variables
+        env:
+          DEPLOY_TARGET: ${{ inputs.target }}
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+          OTHER_D1_DATABASE_ID: ${{ vars.OTHER_D1_DATABASE_ID }}
+          D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
+        run: node tests/server/deployment-config.mjs "$RUNNER_TEMP/cafe-worker.json"
+      # Schema changes require separate operator migration/backup review; never migrate automatically here.
+      - name: Deploy verified code only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy --config "$RUNNER_TEMP/cafe-worker.json"
