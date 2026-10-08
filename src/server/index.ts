@@ -1,3 +1,5 @@
+import { importRoute } from "./routes/imports.ts";
+import { exportRoute } from "./routes/exports.ts";
 import { summaryRoute } from "./routes/summary.ts";
 import { payrollRoute } from "./routes/payroll.ts";
 import { workRoute } from "./routes/work.ts";
@@ -23,6 +25,8 @@ export default {
         (await workRoute(request, env, requestId)) ??
         (await payrollRoute(request, env, requestId)) ??
         (await summaryRoute(request, env, requestId)) ??
+        (await importRoute(request, env, requestId)) ??
+        (await exportRoute(request, env, requestId)) ??
         Response.json(
           {
             error: {

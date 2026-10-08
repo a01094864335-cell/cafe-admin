@@ -143,7 +143,14 @@ export async function payrollRoute(
       (v) => (v === null ? null : date(v)),
       null,
     );
-    assign("weeklyHours", "weekly_hours", (v) => number(v, 0, 40), 0);
+    if (!existing || "weeklyHours" in input)
+      values.weekly_hours_missing = input.weeklyHours === null ? 1 : 0;
+    assign(
+      "weeklyHours",
+      "weekly_hours",
+      (v) => (v === null ? 0 : number(v, 0, 40)),
+      0,
+    );
     assign(
       "holidayDay",
       "holiday_day",

@@ -201,10 +201,13 @@ export async function workRoute(
           },
           "",
         );
+      if (!id || "breakMinutes" in input)
+        values.break_missing = input.breakMinutes === null ? 1 : 0;
       assign(
         "breakMinutes",
         "break_minutes",
         (v) => {
+          if (v === null) return 0;
           if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 1440)
             fail(400, "VALIDATION_ERROR");
           return v as number;

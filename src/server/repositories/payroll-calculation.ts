@@ -28,7 +28,7 @@ export function employeePayroll(
       date: r.business_date,
       start: r.start_time,
       end: r.end_time,
-      breakMinutes: r.break_minutes,
+      breakMinutes: r.break_missing ? null : r.break_minutes,
       note: r.note,
     })),
     weeks: Object.fromEntries(
@@ -42,7 +42,7 @@ export function employeePayroll(
       hireDate: employee.hire_date,
       endDate: employee.end_date,
       firstWeek: s.first_week,
-      weeklyHours: s.weekly_hours,
+      weeklyHours: s.weekly_hours_missing ? null : s.weekly_hours,
       holidayDay: s.holiday_day,
       normalDays: s.normal_days,
       start: s.calculation_start > from ? s.calculation_start : from,
@@ -66,14 +66,12 @@ export function employeePayroll(
     .map((r) => {
       const period = periods.find((s) => inPeriod(s, r.business_date));
       const computed = period
-        ? calculations
-            .get(period.id)!
-            .shift({
-              date: r.business_date,
-              start: r.start_time,
-              end: r.end_time,
-              breakMinutes: r.break_minutes,
-            })
+        ? calculations.get(period.id)!.shift({
+            date: r.business_date,
+            start: r.start_time,
+            end: r.end_time,
+            breakMinutes: r.break_missing ? null : r.break_minutes,
+          })
         : { hours: null, base: null, notice: "입력: 급여 설정 필요" };
       return { id: r.id, businessDate: r.business_date, ...computed };
     });

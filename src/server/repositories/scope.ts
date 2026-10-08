@@ -4,6 +4,7 @@ import type { Role } from "../services/memberships.ts";
 import { membership, memberGuard } from "../services/memberships.ts";
 import { assertion } from "../services/commands.ts";
 import { fail } from "../http.ts";
+import { expireExports } from "./transfer.ts";
 export interface Scope {
   cafeId: string;
   datasetId: string;
@@ -17,11 +18,17 @@ export async function ledgerScope(
   roles: Role[] = ["owner", "admin"],
 ): Promise<Scope> {
   await membership(env, actor, cafeId, roles);
-  const row = await env.DB.prepare(
-    `SELECT c.active_dataset_id datasetId,c.revision,c.write_mode FROM cafes c JOIN datasets d ON d.cafe_id=c.id AND d.id=c.active_dataset_id AND d.state='active' WHERE c.id=?`,
-  )
-    .bind(cafeId)
-    .first<{ datasetId: string; revision: number; write_mode: string }>();
+  const lookup = () =>
+    env.DB.prepare(
+      `SELECT c.active_dataset_id datasetId,c.revision,c.write_mode FROM cafes c JOIN datasets d ON d.cafe_id=c.id AND d.id=c.active_dataset_id AND d.state='active' WHERE c.id=?`,
+    )
+      .bind(cafeId)
+      .first<{ datasetId: string; revision: number; write_mode: string }>();
+  let row = await lookup();
+  if (write && row?.write_mode === "export") {
+    await expireExports(env, cafeId);
+    row = await lookup();
+  }
   if (!row) fail(404, "NOT_FOUND");
   if (write && row.write_mode !== "open") fail(409, "CAFE_WRITE_LOCKED");
   return { cafeId, datasetId: row.datasetId, revision: row.revision };

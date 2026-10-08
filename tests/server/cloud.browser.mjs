@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import { getPlatformProxy, unstable_dev } from "wrangler";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createServer } from "node:net";
 import { migrate, seed, stmt } from "./helpers.mjs";
 import { randomToken, hash } from "../../src/server/auth/crypto.ts";
@@ -139,6 +140,45 @@ test(
     assert.equal(await owner.locator("#sale-form").count(), 0);
     const denied = await a.request.get(origin + "/api/v1/cafes/b/sales");
     assert.equal(denied.status(), 403);
+
+    // Owner creates an empty cafe, imports the synthetic legacy backup, and
+    // downloads a native snapshot with the same totals.
+    await owner.locator("#create-cafe").waitFor();
+    owner.once("dialog", (d) => d.accept("브라우저 이전 카페"));
+    await owner.locator("#create-cafe").click();
+    await owner.waitForFunction(() =>
+      [...document.querySelectorAll("#cafe option")].some(
+        (o) => o.textContent === "브라우저 이전 카페",
+      ),
+    );
+    await owner.locator("#cafe").selectOption({ label: "브라우저 이전 카페" });
+    await owner.locator("[data-view=transfer]").click();
+    await owner
+      .locator("#import-file")
+      .setInputFiles(
+        fileURLToPath(new URL("../fixtures/legacy-v2.json", import.meta.url)),
+      );
+    await owner.getByText("업로드 전 미리보기", { exact: false }).waitFor();
+    await owner.locator("#import-start").click();
+    await owner.getByText("서버 검증 결과 · 원본과 일치").waitFor();
+    owner.once("dialog", (d) => d.accept());
+    await owner.locator("#import-commit").click();
+    await owner.getByText("장부에 적용했습니다.", { exact: true }).waitFor();
+    await owner.locator("#export-start").click();
+    await owner.locator("#download-backup").waitFor();
+    const downloaded = owner.waitForEvent("download");
+    await owner.locator("#download-backup").click();
+    const saved = await downloaded,
+      backup = JSON.parse(await readFile(await saved.path(), "utf8"));
+    assert.equal(backup.version, 3);
+    assert.equal(backup.summary.sales.total, 110000);
+    assert.equal(backup.tables.sales.length, 4);
+    assert.equal(backup.tables.work_logs.length, 2);
+    assert.equal("linked_user_id" in backup.tables.employees[0], false);
+    await owner.screenshot({
+      path: "/tmp/cafe-transfer-desktop.png",
+      fullPage: true,
+    });
 
     const errors = [];
     admin.on("pageerror", (e) => errors.push(e.message));
