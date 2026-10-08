@@ -1,3 +1,4 @@
+import { transferScreen } from "./transfer.js";
 import { membersScreen } from "./members.js";
 import { payrollScreen } from "./payroll.js";
 import { workScreen } from "./work.js";
@@ -36,6 +37,18 @@ let me = null,
   retry = null,
   editing = null;
 const messages = {
+  SUMMARY_OUT_OF_RANGE:
+    "합계가 안전하게 계산할 수 있는 범위를 초과했습니다. 자료 범위를 확인해 주세요.",
+  EXPORT_EXPIRED_OR_CHANGED:
+    "백업 시간이 만료됐거나 카페 정보가 바뀌었습니다. 다시 백업해 주세요.",
+  IMPORT_INCOMPLETE:
+    "아직 모든 자료를 받지 못했습니다. 같은 파일로 이어서 진행해 주세요.",
+  IMPORT_CHUNK_MISMATCH:
+    "업로드 자료가 원본과 다릅니다. 파일을 다시 확인해 주세요.",
+  INVALID_BACKUP: "지원하는 v2 백업 형식인지 확인해 주세요.",
+  PAYLOAD_TOO_LARGE: "자료가 허용 크기를 초과했습니다.",
+  QUANTITY_PRECISION:
+    "재고 수량은 소수 둘째 자리, 단가는 정수 원 단위로 입력해 주세요.",
   EMPLOYEE_NOT_LINKED:
     "연결된 직원 기록이 없습니다. 소유자에게 계정 연결을 요청해 주세요.",
   UNAUTHENTICATED: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
@@ -117,7 +130,7 @@ async function init() {
   }
 }
 function render() {
-  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="dashboard">손익 요약</button><button data-view="payroll">급여</button><button data-view="work">직원 · 근무</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
+  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="dashboard">손익 요약</button><button data-view="payroll">급여</button><button data-view="work">직원 · 근무</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button><button data-view="transfer">자료 이전 · 백업</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
   document
     .querySelector("#create-cafe")
     ?.addEventListener("click", async () => {
@@ -215,6 +228,21 @@ async function renderView() {
     el.innerHTML =
       '<div class="empty"><h2>직원 권한으로 참여 중입니다</h2><p>전체 매출과 멤버 관리는 소유자·관리자에게만 표시됩니다.</p></div>';
     status("카페별 권한이 적용되어 있습니다.");
+    return;
+  }
+  if (view === "transfer") {
+    const ticket = generation;
+    inventoryRefresh = transferScreen({
+      root: el,
+      cafe: current,
+      api,
+      escape,
+      status,
+      valid: () => ticket === generation,
+      dirty: (value) => {
+        dirty = value;
+      },
+    });
     return;
   }
   if (["dashboard", "payroll"].includes(view)) {

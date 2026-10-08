@@ -37,8 +37,18 @@ export function ledgerValues(
   return values;
 }
 export function dto(row: Record<string, unknown>) {
-  const { cafe_id, dataset_id, created_by, updated_by, deleted_at, ...safe } =
-    row;
+  const {
+    cafe_id,
+    dataset_id,
+    created_by,
+    updated_by,
+    deleted_at,
+    break_missing,
+    weekly_hours_missing,
+    ...safe
+  } = row;
+  if (break_missing) safe.break_minutes = null;
+  if (weekly_hours_missing) safe.weekly_hours = null;
   return Object.fromEntries(
     Object.entries(safe).map(([k, v]) => [
       k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),

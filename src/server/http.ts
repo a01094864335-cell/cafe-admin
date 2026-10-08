@@ -17,7 +17,10 @@ export function json(data: unknown, requestId: string, status = 200) {
     { status, headers: { "Cache-Control": "no-store" } },
   );
 }
-export async function body(request: Request): Promise<Record<string, unknown>> {
+export async function body(
+  request: Request,
+  maxBytes = 16384,
+): Promise<Record<string, unknown>> {
   if (
     !request.headers
       .get("Content-Type")
@@ -34,7 +37,7 @@ export async function body(request: Request): Promise<Record<string, unknown>> {
     const { done, value } = await reader.read();
     if (done) break;
     length += value.byteLength;
-    if (length > 16384) {
+    if (length > maxBytes) {
       await reader.cancel();
       fail(413, "PAYLOAD_TOO_LARGE");
     }
