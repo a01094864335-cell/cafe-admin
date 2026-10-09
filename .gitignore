@@ -13,3 +13,9 @@ test-results/
 !package.json
 !tsconfig.json
 !tests/fixtures/*.json
+
+__pycache__/
+*.pyc
+*.sqlite
+*.sqlite-*
+.wrangler/

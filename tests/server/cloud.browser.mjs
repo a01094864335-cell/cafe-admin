@@ -194,6 +194,38 @@ test(
     await admin.locator("#inventory-form [name=quantity]").fill("2.5");
     await admin.locator("#inventory-form button").first().click();
     await admin.getByRole("row").filter({ hasText: "검증 원두" }).waitFor();
+    // A rejected write must preserve both visible error and input; manual retry
+    // reuses its idempotency key instead of silently creating another command.
+    const inventoryKeys = [];
+    await admin.route("**/api/v1/cafes/a/inventory/items", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      inventoryKeys.push(route.request().headers()["idempotency-key"]);
+      if (inventoryKeys.length === 1)
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "INTERNAL_ERROR" } }),
+        });
+      return route.continue();
+    });
+    await admin
+      .locator("#inventory-form [name=name]")
+      .fill("실패 후 재시도 품목");
+    await admin.locator("#inventory-form [name=unit]").fill("개");
+    await admin.locator("#inventory-form button").first().click();
+    await admin.locator("#status.error").waitFor();
+    assert.equal(
+      await admin.locator("#inventory-form [name=name]").inputValue(),
+      "실패 후 재시도 품목",
+    );
+    await admin.locator("#inventory-form button").first().click();
+    await admin
+      .getByRole("row")
+      .filter({ hasText: "실패 후 재시도 품목" })
+      .waitFor();
+    assert.equal(inventoryKeys.length, 2);
+    assert.equal(inventoryKeys[0], inventoryKeys[1]);
+    await admin.unroute("**/api/v1/cafes/a/inventory/items");
     await admin.locator("[data-view=work]").click();
     await admin.waitForFunction(
       () => document.querySelector("#employee-select")?.options.length > 1,
@@ -219,14 +251,56 @@ test(
     await admin.locator("#work-form [name=endTime]").fill("13:00");
     await admin.locator("#work-form button").first().click();
     await admin.getByRole("row").filter({ hasText: "2026-10-09" }).waitFor();
+    let releaseOldSettings, sawOldSettings;
+    const oldSettingsArrived = new Promise((resolve) => {
+      sawOldSettings = resolve;
+    });
+    const holdOldSettings = new Promise((resolve) => {
+      releaseOldSettings = resolve;
+    });
+    await admin.route(
+      "**/api/v1/cafes/a/employees/e1/payroll-settings",
+      async (route) => {
+        if (route.request().method() !== "GET") return route.continue();
+        sawOldSettings();
+        await holdOldSettings;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: [
+              {
+                id: "stale-setting",
+                effectiveFrom: "1999-01-01",
+                effectiveTo: null,
+              },
+            ],
+            nextCursor: null,
+          }),
+        });
+      },
+    );
     await admin.locator("[data-view=payroll]").click();
     await admin
       .locator("#payroll-employee option")
       .filter({ hasText: "브라우저 직원" })
       .waitFor({ state: "attached" });
+    await admin.locator("#payroll-employee").selectOption("e1");
+    await oldSettingsArrived;
     await admin
       .locator("#payroll-employee")
       .selectOption({ label: "브라우저 직원" });
+    const oldSettingsResponse = admin.waitForResponse((response) =>
+      response.url().endsWith("/employees/e1/payroll-settings"),
+    );
+    releaseOldSettings();
+    await oldSettingsResponse;
+    await admin.getByText("저장된 설정이 없습니다.").waitFor();
+    assert.equal(
+      await admin.locator('[data-setting="stale-setting"]').count(),
+      0,
+    );
+    await admin.unroute("**/api/v1/cafes/a/employees/e1/payroll-settings");
     await admin.locator("#settings-form [name=firstWeek]").fill("2026-10-05");
     await admin.locator("#settings-form [name=holidayDay]").selectOption("일");
     await admin.locator("#settings-form [name=rates]").fill('{"2026":10000}');
@@ -247,6 +321,39 @@ test(
     await admin.locator("[data-view=sales]").click();
     await admin.locator("#sale-form").waitFor();
     assert.deepEqual(errors, []);
+    const deleteKeys = [];
+    await admin.route("**/api/v1/cafes/a/sales/*", async (route) => {
+      if (route.request().method() !== "DELETE") return route.continue();
+      deleteKeys.push(route.request().headers()["idempotency-key"]);
+      if (deleteKeys.length === 1) {
+        await route.fetch();
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "INTERNAL_ERROR" } }),
+        });
+      }
+      return route.continue();
+    });
+    const deletedRow = admin
+      .getByRole("row")
+      .filter({ hasText: "두 브라우저 공유 검증" });
+    admin.once("dialog", (d) => d.accept());
+    await deletedRow.getByRole("button", { name: "삭제" }).click();
+    await admin.locator("#status.error").waitFor();
+    admin.once("dialog", (d) => d.accept());
+    await deletedRow.getByRole("button", { name: "삭제" }).click();
+    await deletedRow.waitFor({ state: "detached" });
+    assert.equal(deleteKeys.length, 2);
+    assert.equal(deleteKeys[0], deleteKeys[1]);
+    await admin.unroute("**/api/v1/cafes/a/sales/*");
+    await admin.locator("[data-view=audit]").click();
+    await admin.locator("#audit-rows").getByText("매출 · 삭제").waitFor();
+    await admin.screenshot({
+      path: "/tmp/cafe-operations-desktop.png",
+      fullPage: true,
+    });
+    await admin.locator("[data-view=sales]").click();
     await admin.screenshot({
       path: "/tmp/cafe-cloud-desktop.png",
       fullPage: true,

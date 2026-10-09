@@ -1,3 +1,4 @@
+import { limitMutation } from "../services/operations.ts";
 import type { Env } from "../env.ts";
 import { cookie, fail } from "../http.ts";
 import { hash } from "./crypto.ts";
@@ -42,4 +43,5 @@ export async function csrf(request: Request, env: Env, actor: Actor) {
     (await hash(token)) !== actor.csrfHash
   )
     fail(403, "CSRF_INVALID");
+  await limitMutation(env, actor.userId);
 }

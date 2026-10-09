@@ -1,3 +1,5 @@
+import { createApi } from "./http.js";
+import { auditScreen } from "./audit.js";
 import { transferScreen } from "./transfer.js";
 import { membersScreen } from "./members.js";
 import { payrollScreen } from "./payroll.js";
@@ -36,6 +38,7 @@ let me = null,
   saving = false,
   retry = null,
   editing = null;
+const deleteRetries = new Map();
 const messages = {
   SUMMARY_OUT_OF_RANGE:
     "합계가 안전하게 계산할 수 있는 범위를 초과했습니다. 자료 범위를 확인해 주세요.",
@@ -72,31 +75,11 @@ function status(message, error = false) {
     el.classList.toggle("error", error);
   }
 }
-async function api(path, { method = "GET", data, key, signal } = {}) {
-  const response = await fetch(path, {
-    method,
-    credentials: "same-origin",
-    signal,
-    headers: {
-      ...(data === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(method === "GET" ? {} : { "X-CSRF-Token": me?.csrfToken ?? "" }),
-      ...(key ? { "Idempotency-Key": key } : {}),
-    },
-    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
-  });
-  const value = await response.json();
-  if (!response.ok) {
-    const e = new Error(
-      messages[value.error?.code] ?? "처리하지 못했습니다. 다시 시도해 주세요.",
-    );
-    e.code = value.error?.code;
-    e.details = value.error?.details;
-    throw e;
-  }
-  return value;
-}
+const api = createApi({ csrfToken: () => me?.csrfToken, messages });
+
 function clear() {
   controller?.abort();
+  deleteRetries.clear();
   generation++;
   current = null;
   cafes = [];
@@ -130,7 +113,7 @@ async function init() {
   }
 }
 function render() {
-  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="dashboard">손익 요약</button><button data-view="payroll">급여</button><button data-view="work">직원 · 근무</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button><button data-view="transfer">자료 이전 · 백업</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
+  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="dashboard">손익 요약</button><button data-view="payroll">급여</button><button data-view="work">직원 · 근무</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button><button data-view="transfer">자료 이전 · 백업</button><button data-view="audit">변경 이력</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
   document
     .querySelector("#create-cafe")
     ?.addEventListener("click", async () => {
@@ -192,6 +175,7 @@ async function selectCafe(id) {
   controller?.abort();
   controller = new AbortController();
   generation++;
+  deleteRetries.clear();
   current = cafes.find((c) => c.id === id) ?? null;
   dirty = false;
   retry = null;
@@ -228,6 +212,18 @@ async function renderView() {
     el.innerHTML =
       '<div class="empty"><h2>직원 권한으로 참여 중입니다</h2><p>전체 매출과 멤버 관리는 소유자·관리자에게만 표시됩니다.</p></div>';
     status("카페별 권한이 적용되어 있습니다.");
+    return;
+  }
+  if (view === "audit") {
+    const ticket = generation;
+    inventoryRefresh = auditScreen({
+      root: el,
+      cafe: current,
+      api,
+      escape,
+      status,
+      valid: () => ticket === generation,
+    });
     return;
   }
   if (view === "transfer") {
@@ -450,12 +446,17 @@ function drawRows() {
         const r = rows.find((r) => r.id === b.dataset.delete),
           ticket = generation;
         b.disabled = true;
+        const deletePath = `/api/v1/cafes/${current.id}/${view}/${r.id}`,
+          deleteSignature = deletePath + ":" + r.version;
+        if (!deleteRetries.has(deleteSignature))
+          deleteRetries.set(deleteSignature, crypto.randomUUID());
         try {
-          await api(`/api/v1/cafes/${current.id}/${view}/${r.id}`, {
+          await api(deletePath, {
             method: "DELETE",
             data: { expectedVersion: r.version },
-            key: crypto.randomUUID(),
+            key: deleteRetries.get(deleteSignature),
           });
+          deleteRetries.delete(deleteSignature);
           if (ticket === generation) await refresh();
         } catch (e) {
           if (ticket === generation) status(e.message, true);

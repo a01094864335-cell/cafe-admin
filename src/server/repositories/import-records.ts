@@ -155,6 +155,7 @@ export async function importRecords(
   } catch {
     fail(400, "INVALID_BACKUP");
   }
+  const sourceIds: (string | number | null)[][] = [];
   for (const r of rows) {
     if (!r || typeof r !== "object" || Array.isArray(r))
       fail(400, "VALIDATION_ERROR");
@@ -164,11 +165,7 @@ export async function importRecords(
     if (
       ["sales", "purchases", "incomes", "inventory", "payroll"].includes(kind)
     )
-      statements.push(
-        env.DB.prepare(
-          "INSERT INTO import_source_ids(cafe_id,job_id,source_id,kind,target_id) VALUES (?,?,?,?,?)",
-        ).bind(cafe, job, r.id, kind, id),
-      );
+      sourceIds.push([cafe, job, r.id, kind, id]);
     if (kind === "sales") {
       fields(r, ["id", "date", "card", "cash", "transfer", "note"]);
       date(r.date);
@@ -302,5 +299,11 @@ export async function importRecords(
       );
     }
   }
+  if (sourceIds.length)
+    statements.unshift(
+      env.DB.prepare(
+        `INSERT INTO import_source_ids(cafe_id,job_id,source_id,kind,target_id) VALUES ${sourceIds.map(() => "(?,?,?,?,?)").join(",")}`,
+      ).bind(...sourceIds.flat()),
+    );
   return statements;
 }

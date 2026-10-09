@@ -108,7 +108,7 @@ export async function command(
           "UPDATE commands SET cafe_id=?,result_json=? WHERE id=?",
         ).bind(p.cafeId, JSON.stringify(p.result), id),
         env.DB.prepare(
-          "INSERT INTO audit_logs(id,cafe_id,actor_id,operation_id,target,action,summary_json) VALUES (?,?,?,?,?,?,?)",
+          "INSERT INTO audit_logs(id,cafe_id,actor_id,operation_id,target,action,summary_json,request_id) VALUES (?,?,?,?,?,?,?,?)",
         ).bind(
           crypto.randomUUID(),
           p.cafeId,
@@ -117,6 +117,9 @@ export async function command(
           p.target,
           p.action,
           "{}",
+          /^[0-9a-f-]{36}$/.test(request.headers.get("X-Request-ID") ?? "")
+            ? request.headers.get("X-Request-ID")
+            : null,
         ),
         env.DB.prepare(
           "UPDATE cafes SET revision=revision+1,updated_at=? WHERE id=?",
