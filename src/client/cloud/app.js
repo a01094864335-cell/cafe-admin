@@ -163,7 +163,7 @@ function render() {
   );
   if (!cafes.length)
     document.querySelector("#content").innerHTML =
-      '<div class="empty"><h2>아직 참여한 카페가 없습니다</h2><p>소유자에게 초대 링크를 받아 참여해 주세요.</p></div>';
+      '<div class="empty"><h2>아직 참여한 카페가 없습니다</h2><p>카페 만들기로 내 카페를 시작하거나, 소유자에게 초대 링크를 받아 참여해 주세요.</p></div>';
 }
 let stockItems = [];
 let inventoryRefresh = null;

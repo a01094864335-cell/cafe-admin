@@ -20,23 +20,21 @@ test("two cafes expose current per-cafe roles and deny staff/nonmembers member d
   assert.equal(ok(await request("u2", "/api/v1/cafes/a/members")).length, 2);
 });
 
-test("cafe creation defaults deny, validates timezone and atomically replays one authorized creation", async (t) => {
-  const { request, db, env } = await setup(t),
+test("a new authenticated user creates an isolated cafe as owner and atomically replays creation", async (t) => {
+  const { request, db } = await setup(t),
     key = randomToken(),
     payload = { name: "가상 신규", timezone: "Asia/Seoul" };
+  for (const user of ["u1", "u2", "u3"])
+    assert.equal(ok(await request(user, "/api/v1/me")).canCreateCafe, true);
+  assert.deepEqual(ok(await request("u3", "/api/v1/cafes")), []);
   assert.equal(
-    (await request("u2", "/api/v1/cafes", "POST", payload)).status,
-    403,
+    (await request("u3", "/api/v1/cafes", "POST", payload, key, { Cookie: "" }))
+      .status,
+    401,
   );
-  env.CAFE_CREATOR_IDS = "";
-  assert.equal(
-    (await request("u1", "/api/v1/cafes", "POST", payload)).status,
-    403,
-  );
-  env.CAFE_CREATOR_IDS = "u1";
   assert.equal(
     (
-      await request("u1", "/api/v1/cafes", "POST", {
+      await request("u3", "/api/v1/cafes", "POST", {
         ...payload,
         timezone: "Invalid/Zone",
       })
@@ -44,14 +42,54 @@ test("cafe creation defaults deny, validates timezone and atomically replays one
     400,
   );
   const result = ok(
-    await request("u1", "/api/v1/cafes", "POST", payload, key),
+    await request("u3", "/api/v1/cafes", "POST", payload, key),
     201,
   );
   assert.equal(
-    ok(await request("u1", "/api/v1/cafes", "POST", payload, key), 201).id,
+    ok(await request("u3", "/api/v1/cafes", "POST", payload, key), 201).id,
     result.id,
   );
   assert.equal(await scalar(db, "SELECT count(*) FROM cafes"), 3);
+  assert.equal(result.role, "owner");
+  assert.deepEqual(
+    ok(await request("u3", "/api/v1/cafes")).map((c) => c.id),
+    [result.id],
+  );
+  assert.equal(
+    ok(await request("u3", `/api/v1/cafes/${result.id}`)).role,
+    "owner",
+  );
+  assert.equal(
+    await scalar(
+      db,
+      "SELECT user_id FROM memberships WHERE cafe_id=? AND role='owner'",
+      result.id,
+    ),
+    "u3",
+  );
+  assert.equal(
+    await scalar(
+      db,
+      "SELECT count(*) FROM datasets d JOIN cafes c ON c.id=d.cafe_id AND c.active_dataset_id=d.id WHERE c.id=? AND d.state='active'",
+      result.id,
+    ),
+    1,
+  );
+  assert.equal((await request("u3", "/api/v1/cafes/a/sales")).status, 404);
+  for (const user of ["u1", "u2"]) {
+    assert.equal(
+      (await request(user, `/api/v1/cafes/${result.id}`)).status,
+      404,
+    );
+    assert.equal(
+      (await request(user, `/api/v1/cafes/${result.id}/sales`)).status,
+      404,
+    );
+    assert.equal(
+      ok(await request(user, "/api/v1/cafes")).some((c) => c.id === result.id),
+      false,
+    );
+  }
   assert.equal(
     await scalar(
       db,
@@ -63,7 +101,7 @@ test("cafe creation defaults deny, validates timezone and atomically replays one
   assert.equal(
     (
       await request(
-        "u1",
+        "u3",
         "/api/v1/cafes",
         "POST",
         { ...payload, name: "다른" },

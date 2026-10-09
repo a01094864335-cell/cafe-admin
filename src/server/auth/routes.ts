@@ -145,10 +145,7 @@ export async function authRoute(
     return json(
       {
         id: actor.userId,
-        canCreateCafe: (env.CAFE_CREATOR_IDS ?? "")
-          .split(",")
-          .map((v) => v.trim())
-          .includes(actor.userId),
+        canCreateCafe: true,
         name: actor.name,
         email: actor.email,
         csrfToken:

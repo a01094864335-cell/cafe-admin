@@ -1,11 +1,12 @@
-# 테스트 배포 현황 — 2026-10-09
+# 테스트 배포 현황 — 2026-10-10
 
 ## 현재 상태
 
 - 테스트 서비스: https://cafe-admin-test.cafe-admin.workers.dev/cloud
 - Worker: `cafe-admin-test`
-- 배포 소스: PR #6, `68fca39dacd2339bdb825245c695d21f8adb8e59`
-- 최종 배포 버전: `faa7cf47-e34a-4593-b39a-8decfb1feb3f`
+- 배포 소스: PR #8, `2fc3566a860603b6ac816e45d7df38a605c27481`
+- 최종 배포 버전: `c563ddf1-ffe4-487e-a528-f6fa4d5740b0`
+- 카페 생성 정책: Google 로그인한 모든 사용자가 생성할 수 있다. 생성자는 해당 카페의 owner이며, 다른 카페 접근에는 멤버십·역할 검사가 계속 적용된다. `CAFE_CREATOR_IDS` 허용 목록은 제거했다.
 - Cloudflare 계정: `fd599fd3feefc4b220c2ce49809d3477`
 - 테스트 D1: `cafe-admin-test`, `dfa443d6-ce25-49c2-8768-bb4443d99cf4` (APAC)
 - Migration 0001–0005 적용 완료. 0005는 5개 추가형 SQL을 1.48ms에 적용했다.
@@ -15,7 +16,7 @@
 ## Google 로그인 설정
 
 - 프로젝트: `cafe-admin-511011`
-- 앱 표시 이름: `카페장부`; 외부 사용자/테스트 중; 계정 소유자 한 명을 테스트 사용자로 등록했다.
+- 앱 표시 이름: `카페장부`; 최초 설정 시 외부 사용자/테스트 중이었고 계정 소유자 한 명을 테스트 사용자로 등록했다. 10월 10일 사용자가 다른 계정 로그인 성공을 알렸다. 이번 변경은 서비스의 카페 생성 정책이며 Google 콘솔 설정은 변경하지 않았다.
 - OAuth 웹 클라이언트 이름: `카페장부 테스트 웹`
 - 클라이언트 ID: `98852765052-rvhtrdovsuv20bhjp7fdlp5fl0cpset3.apps.googleusercontent.com`
 - 유일한 redirect URI: `https://cafe-admin-test.cafe-admin.workers.dev/auth/google/callback`
@@ -26,6 +27,8 @@
 
 ## 검증 결과와 남은 확인
 
+- 2026-10-10 PR #8의 GitHub Actions `37951523983` required-checks 성공: backend 75개, 신규 가상 사용자 카페 생성 포함 cloud 시나리오, 빌드, 빈 D1 migration 및 no-op 재적용. 신규 사용자의 owner·active dataset 생성, 중복 요청 재생, 카페 간 접근 차단을 검증했다. 로컬 브라우저 증거: `/tmp/cafe-any-user-create.png`.
+- 위 커밋을 기존 테스트 Worker에 배포했다. DB migration 없이 기존 D1 및 두 secrets를 유지했다. 원격 `/cloud` 200과 새 자산 `cloud-BDyi8CFt.js` 제공, 비로그인 POST `/api/v1/cafes`의 401 `UNAUTHENTICATED`, 두 secret 이름 보존을 확인했다. Codex 브라우저에서 기존 로그인·테스트 카페 A/B·생성 버튼 유지도 확인했다. 원격 화면 증거: `/tmp/cafe-any-user-deployed.png`. 신규 실제 Google 계정의 생성 클릭은 대신 실행하지 않았으며 신규 계정 흐름은 격리된 가상 세션으로 검증했다.
 - PR #6의 GitHub Actions `37916749663` required-checks 성공: backend 75개/cloud 시나리오, 빌드, 빈 D1 migration 및 no-op 재적용 포함. 이전 PR #5의 `37794385307`도 성공했다.
 - 원격 D1 migration 0005와 W13 Worker 배포 성공. 매시 17분 정리 Cron 등록을 배포 출력에서 확인했다. 정리 작업의 실제 예약 실행 결과는 아직 별도로 관찰하지 않았다.
 - Chrome과 Codex 브라우저에서 공유 장부 첫 화면 확인.
@@ -41,11 +44,11 @@
 
 ## 재배포와 작업 보존
 
-- 현재 배포에 사용한 격리 폴더: `/tmp/cafe-admin-w13-deploy.x452pnob`, 설정: `wrangler.test.json` (비밀 값 없음). 이전 W12 폴더는 `/tmp/cafe-admin-w12-deploy.Wrjaix`, PR #4 폴더는 `/tmp/cafe-admin-pr4-deploy.bHFl5B`이다.
+- 현재 배포에 사용한 격리 폴더: `/tmp/cafe-open-creation-deploy.snVeFb`, 설정: `wrangler.test.json` (비밀 값 없음). 이전 W13 폴더는 `/tmp/cafe-admin-w13-deploy.x452pnob`, W12 폴더는 `/tmp/cafe-admin-w12-deploy.Wrjaix`, PR #4 폴더는 `/tmp/cafe-admin-pr4-deploy.bHFl5B`이다.
 - 임시 폴더가 없어지면 위 정확한 커밋을 별도 폴더에 export/build하고 위 테스트 DB/변수만 바인딩한다. `workers_dev=true`, `preview_urls=false`, `observability.enabled=true`, `observability.redact_query_string=true`, `observability.logs.enabled=true`, `observability.logs.invocation_logs=false`, `observability.traces.enabled=false`, `triggers.crons=["17 * * * *"]`를 적용한다. assets 및 API routing은 deployment generator를 따른다.
 - 기존 두 환경용 generator에 가짜 운영 DB ID를 넣지 않았다. 운영 DB는 미생성이다.
 - 재배포 때 Cloudflare의 기존 두 secret을 보존한다. 새 키를 임의 생성해 기존 키를 덮어쓰지 않는다.
-- W13 및 로컬 W14/W15는 `codex/cloud-operations`의 draft PR #6이며 base는 W12 draft PR #5다. 검증된 위 커밋을 archive/build한 폴더에서 배포했다. 이후 문서만 바꾼 커밋은 재배포하지 않는다. PR merge 및 운영 배포는 하지 않았다.
+- 현재 변경은 `codex/open-cafe-creation`의 draft PR #8이며 base는 원격 복구 검증 PR #7(`codex/cloud-recovery`)이다. 검증된 위 커밋을 archive/build한 폴더에서 배포했다. 이후 문서만 바꾼 커밋은 재배포하지 않는다. PR merge 및 운영 배포는 하지 않았다.
 - 사용자가 중단 후 다시 남은 작업 진행을 요청했다. 현재 작업 재개가 승인되어 있다. 다음 작업은 `NEXT-2026-10-09.md`의 순서를 따르되 완료된 실제 로그인 검증을 반복하지 않는다.
 
 재개 시 원격 D1 직접 조회 한 건은 Cloudflare 7403으로 거절됐지만, 동일하게 승인된 연결로 `wrangler d1 migrations list cafe-admin-test --remote --config wrangler.test.json` 재확인에 성공했다. 새 권한은 추가하지 않았다.
