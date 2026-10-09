@@ -68,6 +68,7 @@ def insert(db, table, row):
 def restore_cafe(db, backup, cafe, owner, revision):
     current = db.execute('SELECT * FROM cafes WHERE id=?', (cafe,)).fetchone()
     require(current is not None and current['revision'] == revision and current['write_mode'] == 'open', 'Cafe changed or is locked')
+    require(type(revision) is int and 0 <= revision < MAX_SAFE and 1 <= current['version'] < MAX_SAFE, 'Cafe counter out of range')
     owners = db.execute("SELECT user_id FROM memberships WHERE cafe_id=? AND role='owner' AND status='active'", (cafe,)).fetchall()
     require(len(owners) == 1 and owners[0][0] == owner, 'Current sole owner required')
     require(current['timezone'] == backup['cafe']['timezone'], 'Timezone mismatch')

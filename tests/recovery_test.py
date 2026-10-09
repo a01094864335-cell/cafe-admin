@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import unittest
 
@@ -9,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('recovery', ROOT / 'scripts/recovery.py')
 r = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(r)
+sys.path.insert(0, str(ROOT / 'scripts'))
+import recovery_sql as sql_recovery
 
 
 class RecoveryTest(unittest.TestCase):
@@ -24,14 +27,7 @@ class RecoveryTest(unittest.TestCase):
         for migration in sorted((ROOT / 'migrations').glob('*.sql')):
             self.db.executescript(migration.read_text())
         self.db.executescript((ROOT / 'tests/server/fixtures/synthetic.sql').read_text())
-        self.db.executescript("""
-        INSERT INTO commands(id,user_id,cafe_id,scope,key,payload_hash) VALUES ('op','u1','a','test','key','hash');
-        INSERT INTO inventory_movements(cafe_id,dataset_id,id,created_by,updated_by,item_id,delta_hundredths,operation_id,kind) VALUES ('a','a-live','m1','u1','u1','i1',250,'op','opening');
-        INSERT INTO payroll_settings(cafe_id,dataset_id,id,created_by,updated_by,employee_id,effective_from,weekly_hours,holiday_day,normal_days,calculation_start,calculation_end,threshold,cap_hours,max_weekly,average_weeks) VALUES ('a','a-live','p1','u1','u1','e1','2026-01-01',20,'일',5,'2026-01-01','2026-12-31',15,8,40,4);
-        INSERT INTO payroll_rates VALUES ('a','a-live','p1',2026,10000);
-        INSERT INTO work_logs(cafe_id,dataset_id,id,created_by,updated_by,employee_id,business_date,start_time,end_time,break_minutes) VALUES ('a','a-live','w1','u1','u1','e1','2026-10-01','09:00','13:00',0);
-        UPDATE employees SET linked_user_id='u1' WHERE cafe_id='a' AND dataset_id='a-live';
-        """)
+        self.db.executescript((ROOT / 'tests/server/fixtures/recovery.sql').read_text())
         self.backup = {'version': 3, 'format': 'cafe-admin-cloud', 'exportedAt': '2026-10-09T00:00:00.000Z', 'cafe': {'name': '가상 카페 A', 'timezone': 'Asia/Seoul'}, 'metadata': {}, 'summary': r.summary(self.db, 'a', 'a-live'), 'tables': {}}
         for table in r.TABLES:
             self.backup['tables'][table] = [{k: v for k, v in dict(row).items() if k not in r.PRIVATE} for row in self.db.execute(f'SELECT * FROM {table} WHERE cafe_id=? AND dataset_id=?', ('a', 'a-live'))]
@@ -83,6 +79,75 @@ class RecoveryTest(unittest.TestCase):
                 r.recover(self.source, target, self.file, 'a', 'u2' if bad == 'owner' else 'u1', 1 if bad == 'revision' else 0)
             self.assertFalse(target.exists(), bad)
         self.assertEqual('\n'.join(self.db.iterdump()), self.before)
+
+    def apply_sql(self, sql):
+        # D1 file import supplies the transaction; simulate that contract locally.
+        try:
+            self.db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nCOMMIT;')
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def test_sql_plan_restores_one_cafe_and_preserves_other_cafe_and_memberships(self):
+        self.db.execute("UPDATE sales SET card=999999,version=9 WHERE cafe_id='a' AND dataset_id='a-live'")
+        self.db.commit()
+        expected_b = [tuple(row) for row in self.db.execute("SELECT * FROM sales WHERE cafe_id='b'")]
+        members = [tuple(row) for row in self.db.execute('SELECT * FROM memberships ORDER BY id')]
+        sql, report = sql_recovery.make_plan(self.source, self.file, 'a', 'u1', 0)
+        self.apply_sql(sql)
+        active = self.db.execute("SELECT active_dataset_id FROM cafes WHERE id='a'").fetchone()[0]
+        self.assertEqual(r.summary(self.db, 'a', active), self.backup['summary'])
+        self.assertEqual(self.db.execute("SELECT version FROM sales WHERE cafe_id='a' AND dataset_id=?", (active,)).fetchone()[0], 10)
+        self.assertIsNone(self.db.execute("SELECT linked_user_id FROM employees WHERE cafe_id='a' AND dataset_id=?", (active,)).fetchone()[0])
+        self.assertEqual([tuple(row) for row in self.db.execute("SELECT * FROM sales WHERE cafe_id='b'")], expected_b)
+        self.assertEqual([tuple(row) for row in self.db.execute('SELECT * FROM memberships ORDER BY id')], members)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM transaction_assertions').fetchone()[0], 0)
+        self.assertEqual(self.db.execute('PRAGMA foreign_key_check').fetchall(), [])
+        self.assertEqual(self.db.execute("SELECT count(*) FROM audit_logs WHERE action='recovery.restore'").fetchone()[0], 1)
+        self.assertEqual(report['summary'], self.backup['summary'])
+        after = '\n'.join(self.db.iterdump())
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.apply_sql(sql)
+        self.assertEqual('\n'.join(self.db.iterdump()), after, 'Replaying a completed plan must not restore twice')
+
+    def test_sql_plan_rejects_cafe_membership_and_record_changes(self):
+        for mutation in ("UPDATE cafes SET revision=revision+1 WHERE id='a'",
+                         "UPDATE memberships SET role='staff',version=version+1 WHERE id='ma2'",
+                         "UPDATE sales SET version=version+1 WHERE id='s1'"):
+            sql, _ = sql_recovery.make_plan(self.source, self.file, 'a', 'u1', self.db.execute("SELECT revision FROM cafes WHERE id='a'").fetchone()[0])
+            self.db.execute(mutation)
+            self.db.commit()
+            changed = '\n'.join(self.db.iterdump())
+            with self.assertRaises(sqlite3.IntegrityError):
+                self.apply_sql(sql)
+            self.assertEqual('\n'.join(self.db.iterdump()), changed)
+
+    def test_sql_plan_failure_after_staging_rolls_back_everything(self):
+        sql, _ = sql_recovery.make_plan(self.source, self.file, 'a', 'u1', 0)
+        sql = sql.replace("UPDATE datasets SET state='retired'", "INSERT INTO transaction_assertions(id,ok) VALUES ('forced-failure',0);\nUPDATE datasets SET state='retired'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.apply_sql(sql)
+        self.assertEqual('\n'.join(self.db.iterdump()), self.before)
+
+    def test_sql_literals_preserve_business_text_without_executing_it(self):
+        value = "test'); DROP TABLE users; --\n가상\x00메모"
+        self.backup['tables']['sales'][0]['note'] = value
+        self.file.write_text(json.dumps(self.backup))
+        sql, _ = sql_recovery.make_plan(self.source, self.file, 'a', 'u1', 0)
+        self.apply_sql(sql)
+        self.assertEqual(self.db.execute("SELECT note FROM active_sales WHERE cafe_id='a'").fetchone()[0], value)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM users').fetchone()[0], 3)
+
+    def test_sql_plan_rejects_exhausted_cafe_counter_and_preserves_existing_output(self):
+        output = self.path / 'reviewed.sql'
+        output.write_text('already reviewed')
+        with self.assertRaises(FileExistsError):
+            sql_recovery.write_plan(self.source, self.file, 'a', 'u1', 0, output)
+        self.assertEqual(output.read_text(), 'already reviewed')
+        self.db.execute('UPDATE cafes SET revision=? WHERE id=?', (r.MAX_SAFE, 'a'))
+        self.db.commit()
+        with self.assertRaises(ValueError):
+            sql_recovery.make_plan(self.source, self.file, 'a', 'u1', r.MAX_SAFE)
 
 
 if __name__ == '__main__':
