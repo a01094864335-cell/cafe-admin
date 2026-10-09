@@ -152,15 +152,17 @@ export function inventoryScreen({
               method = "DELETE";
             }
             saving = true;
+            let saved = false;
             try {
               await write(path, method, data);
               retry = null;
+              saved = true;
               status("저장했습니다.");
             } catch (e) {
               if (valid()) status(e.message, true);
             } finally {
               saving = false;
-              if (valid()) await refresh();
+              if (valid() && saved) await refresh();
             }
           }),
       );
@@ -189,6 +191,7 @@ export function inventoryScreen({
     }
     saving = true;
     const wasEditing = !!editing;
+    let saved = false;
     for (const el of form.elements) el.disabled = true;
     try {
       await write(
@@ -196,6 +199,7 @@ export function inventoryScreen({
         editing ? "PATCH" : "POST",
         data,
       );
+      saved = true;
       if (valid()) reset();
     } catch (e) {
       if (valid()) status(e.message, true);
@@ -203,7 +207,7 @@ export function inventoryScreen({
       saving = false;
       for (const el of form.elements) el.disabled = false;
       form.elements.quantity.disabled = !!editing && wasEditing;
-      if (valid()) await refresh();
+      if (valid() && saved) await refresh();
     }
   };
   root.querySelector("#inventory-more").onclick = () => refresh(true);

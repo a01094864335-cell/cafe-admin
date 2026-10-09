@@ -77,20 +77,29 @@ export function payrollScreen({
       weekIdentity = "",
       extraVersion = null,
       extraIdentity = "";
+    let settingsRead = 0;
     const employeePath = () => base + "employees/" + selected + "/";
     async function loadSettings() {
-      let cursor = null;
-      settings = [];
+      const ticket = ++settingsRead,
+        employee = selected;
+      let cursor = null,
+        loaded = [];
       do {
         const r = await api(
-          employeePath() +
+          base +
+            "employees/" +
+            employee +
+            "/" +
             "payroll-settings" +
             (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""),
         );
-        settings.push(...r.data);
+        if (!valid() || ticket !== settingsRead || employee !== selected)
+          return;
+        loaded.push(...r.data);
         cursor = r.nextCursor;
       } while (cursor && valid());
-      if (!valid()) return;
+      if (!valid() || ticket !== settingsRead || employee !== selected) return;
+      settings = loaded;
       root.querySelector("#settings-list").innerHTML =
         settings
           .map(
@@ -247,11 +256,17 @@ export function payrollScreen({
           .join("");
         selected = employees[0]?.id ?? "";
         select.onchange = () => {
-          if (!canLeave()) {
+          if (saving || !canLeave()) {
             select.value = selected;
             return;
           }
           selected = select.value;
+          settingsRead++;
+          settings = [];
+          root.querySelector("#settings-list").replaceChildren();
+          weekVersion = extraVersion = null;
+          weekIdentity = extraIdentity = "";
+          retry = null;
           editing = null;
           form.reset();
           weekly.reset();

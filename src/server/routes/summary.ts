@@ -30,10 +30,30 @@ export async function summaryRoute(
     "weekly_confirmations",
     "payroll_extras",
   ];
-  const warmup = new Date(Date.parse(from + 'T12:00:00Z') - 28*86400000).toISOString().slice(0,10);
+  const warmup = new Date(Date.parse(from + "T12:00:00Z") - 28 * 86400000)
+    .toISOString()
+    .slice(0, 10);
   const queries = tables.map((table) => {
-    const column = table === 'work_logs' ? 'business_date' : table === 'weekly_confirmations' ? 'week_start' : table === 'payroll_extras' ? 'month' : null;
-    return env.DB.prepare(`SELECT * FROM ${table} WHERE cafe_id=? AND dataset_id=? ${table === 'payroll_rates' ? '' : 'AND deleted_at IS NULL'} ${column ? `AND ${column} BETWEEN ? AND ?` : ''}`).bind(cafeId,s.datasetId,...(column ? [table === 'payroll_extras' ? from.slice(0,7) : warmup,table === 'payroll_extras' ? to.slice(0,7) : to] : []));
+    const column =
+      table === "work_logs"
+        ? "business_date"
+        : table === "weekly_confirmations"
+          ? "week_start"
+          : table === "payroll_extras"
+            ? "month"
+            : null;
+    return env.DB.prepare(
+      `SELECT * FROM ${table} WHERE cafe_id=? AND dataset_id=? ${table === "payroll_rates" ? "" : "AND deleted_at IS NULL"} ${column ? `AND ${column} BETWEEN ? AND ?` : ""}`,
+    ).bind(
+      cafeId,
+      s.datasetId,
+      ...(column
+        ? [
+            table === "payroll_extras" ? from.slice(0, 7) : warmup,
+            table === "payroll_extras" ? to.slice(0, 7) : to,
+          ]
+        : []),
+    );
   });
   queries.push(
     env.DB.prepare(
@@ -61,6 +81,13 @@ export async function summaryRoute(
   const wages = payroll.reduce((sum, r) => sum + r.total, 0),
     pending = payroll.some((r) => r.pending),
     revision = data[6][0].revision;
+  if (
+    ![
+      wages,
+      ...payroll.flatMap((r) => [r.base, r.holiday, r.extra, r.total]),
+    ].every(Number.isSafeInteger)
+  )
+    fail(400, "SUMMARY_OUT_OF_RANGE");
   if (resource === "payroll")
     return json(
       { from, to, revision, employees: payroll, total: wages, pending },
@@ -72,6 +99,12 @@ export async function summaryRoute(
     expenses = Number(data[9][0].total),
     income = revenue + other,
     cost = purchases + expenses + wages;
+  if (
+    ![revenue, other, purchases, expenses, income, cost, income - cost].every(
+      Number.isSafeInteger,
+    )
+  )
+    fail(400, "SUMMARY_OUT_OF_RANGE");
   return json(
     {
       from,

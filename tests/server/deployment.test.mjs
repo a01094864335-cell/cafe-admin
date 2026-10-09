@@ -34,4 +34,8 @@ test("deployment stays unconfigured without distinct provisioned DB IDs and an e
   assert.equal(config.d1_databases[0].database_id, env.D1_DATABASE_ID);
   assert.equal(config.vars.APP_ENV, "test");
   assert.equal(config.preview_urls, false);
+  assert.equal(config.observability.redact_query_string, true);
+  assert.equal(config.observability.logs.invocation_logs, false);
+  assert.equal(config.observability.traces.enabled, false);
+  assert.deepEqual(config.triggers.crons, ["17 * * * *"]);
 });

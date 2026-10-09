@@ -43,7 +43,13 @@ export function deploymentConfig(env, root = process.cwd()) {
       GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
       CAFE_CREATOR_IDS: env.CAFE_CREATOR_IDS ?? "",
     },
-    observability: { enabled: false },
+    observability: {
+      enabled: true,
+      redact_query_string: true,
+      logs: { enabled: true, invocation_logs: false },
+      traces: { enabled: false },
+    },
+    triggers: { crons: ["17 * * * *"] },
     assets: {
       directory: resolve(root, "dist"),
       binding: "ASSETS",
