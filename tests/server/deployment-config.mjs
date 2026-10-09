@@ -41,7 +41,6 @@ export function deploymentConfig(env, root = process.cwd()) {
       APP_ENV: target,
       APP_ORIGIN: env.APP_ORIGIN,
       GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-      CAFE_CREATOR_IDS: env.CAFE_CREATOR_IDS ?? "",
     },
     observability: {
       enabled: true,

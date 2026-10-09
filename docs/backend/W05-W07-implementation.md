@@ -62,7 +62,8 @@ API 오류 형식은 기존 계약 `{error:{code,message},requestId}`다. 현재
 
 ## 필요한 환경 설정
 
-- vars: `APP_ORIGIN`(path 없는 정확한 HTTPS origin), 실제 `GOOGLE_CLIENT_ID`, `CAFE_CREATOR_IDS`(내부 user ID 쉼표 목록, 미설정 기본 생성 거부).
+- vars: `APP_ORIGIN`(path 없는 정확한 HTTPS origin), 실제 `GOOGLE_CLIENT_ID`.
+- 2026-10-10 사용자 요청으로 생성 허용 목록을 제거했다. 로그인한 모든 사용자가 카페를 생성하고 해당 카페의 owner가 된다. 다른 카페에는 기존 멤버십·초대·역할 검사가 그대로 적용되며 비로그인 생성은 거부한다.
 - 환경별 Worker secrets: 실제 `GOOGLE_CLIENT_SECRET`, 별도의 `INVITATION_TOKEN_KEY`.
 - Google callback URI: `${APP_ORIGIN}/auth/google/callback`을 테스트/운영 OAuth 앱에 정확히 등록한다.
 - 배포 config generator와 수동 workflow에 공개 vars 전달을 추가했다. secrets는 파일·GitHub PR·로그에 넣지 않고 환경별 Worker secret 저장소에서 관리한다.

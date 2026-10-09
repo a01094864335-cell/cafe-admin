@@ -18,7 +18,7 @@ async function freePort() {
   return port;
 }
 test(
-  "two isolated browsers share a sale; staff isolation, dirty input and mobile layout work",
+  "new users create isolated cafes; shared sales, staff roles, dirty input and mobile layout work",
   { timeout: 120000 },
   async (t) => {
     const persistTo = await mkdtemp(join(tmpdir(), "cafe-w08-browser-"));
@@ -31,7 +31,7 @@ test(
     await migrate(proxy.env.DB);
     await seed(proxy.env.DB);
     const sessions = {};
-    for (const id of ["u1", "u2"]) {
+    for (const id of ["u1", "u2", "u3"]) {
       const token = randomToken(),
         csrf = randomToken();
       sessions[id] = { token, csrf };
@@ -58,7 +58,6 @@ test(
       vars: {
         APP_ORIGIN: origin,
         INVITATION_TOKEN_KEY: randomToken(),
-        CAFE_CREATOR_IDS: "u1",
       },
       logLevel: "error",
       experimental: {
@@ -98,6 +97,46 @@ test(
     }
     const a = await session("u1", { width: 1360, height: 950 }),
       b = await session("u2", { width: 1360, height: 950 });
+    const newcomerContext = await session("u3", { width: 1360, height: 950 });
+    const newcomer = await newcomerContext.newPage();
+    await newcomer.goto(origin + "/cloud.html");
+    await newcomer
+      .getByText("아직 참여한 카페가 없습니다", { exact: true })
+      .waitFor();
+    await newcomer
+      .getByText("카페 만들기로 내 카페를 시작하거나", { exact: false })
+      .waitFor();
+    newcomer.once("dialog", (d) => d.accept("새 사용자 카페"));
+    await newcomer
+      .getByRole("button", { name: "카페 만들기", exact: true })
+      .click();
+    await newcomer.locator("#sale-form").waitFor();
+    const newcomerCafe = await newcomer.locator("#cafe").inputValue();
+    assert.ok(newcomerCafe);
+    assert.equal(await newcomer.locator("#cafe option").count(), 2);
+    assert.equal(
+      await newcomer.locator("#cafe option:checked").innerText(),
+      "새 사용자 카페",
+    );
+    assert.equal(
+      (await newcomerContext.request.get(origin + "/api/v1/cafes/a")).status(),
+      404,
+    );
+    assert.equal(
+      (await a.request.get(origin + `/api/v1/cafes/${newcomerCafe}`)).status(),
+      404,
+    );
+    assert.equal(
+      (
+        await b.request.get(origin + `/api/v1/cafes/${newcomerCafe}/sales`)
+      ).status(),
+      404,
+    );
+    await newcomer.screenshot({
+      path: "/tmp/cafe-any-user-create.png",
+      fullPage: true,
+    });
+    await newcomerContext.close();
     const owner = await a.newPage(),
       admin = await b.newPage();
     await owner.goto(origin + "/cloud.html");

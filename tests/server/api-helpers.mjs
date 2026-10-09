@@ -9,7 +9,6 @@ export async function setup(t) {
     DB: db,
     APP_ENV: "test",
     APP_ORIGIN: "https://cafe.example.invalid",
-    CAFE_CREATOR_IDS: "u1",
     INVITATION_TOKEN_KEY: randomToken(),
   };
   const sessions = {};

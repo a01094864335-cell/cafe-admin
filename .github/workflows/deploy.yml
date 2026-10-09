@@ -67,7 +67,6 @@ jobs:
           D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          CAFE_CREATOR_IDS: ${{ vars.CAFE_CREATOR_IDS }}
         run: node tests/server/deployment-config.mjs "$RUNNER_TEMP/cafe-worker.json"
       # Schema changes require separate operator migration/backup review; never migrate automatically here.
       - name: Deploy verified code only

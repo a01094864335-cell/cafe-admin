@@ -42,16 +42,6 @@ export function memberGuard(
     ...roles,
   );
 }
-export function creator(env: Env, actor: Actor) {
-  if (
-    !(env.CAFE_CREATOR_IDS ?? "")
-      .split(",")
-      .map((v) => v.trim())
-      .filter(Boolean)
-      .includes(actor.userId)
-  )
-    fail(403, "FORBIDDEN");
-}
 export async function cafeRoute(
   request: Request,
   env: Env,
@@ -70,7 +60,6 @@ export async function cafeRoute(
       return page(rows.results, p, "id", requestId);
     }
     await csrf(request, env, actor);
-    creator(env, actor);
     const input = await body(request);
     fields(input, ["name", "timezone"]);
     const name = string(input.name, 100),
@@ -89,7 +78,7 @@ export async function cafeRoute(
       request,
       { name, timezone },
       async () => {
-        creator(env, actor);
+        await authenticate(request, env);
       },
       async () => {
         const cafeId = crypto.randomUUID(),
