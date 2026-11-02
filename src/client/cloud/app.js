@@ -91,7 +91,7 @@ function clear() {
   retry = null;
 }
 function signedOut(message = "") {
-  app.innerHTML = `<main class="login"><div class="mark">c</div><p class="eyebrow">CAFE ADMIN</p><h1>같이 기록하는<br>우리 카페 장부</h1><p>카페의 매출과 운영 기록을<br>허용된 멤버와 함께 관리합니다.</p><a class="button" href="/auth/google/start${pendingInvite ? "?invite=" + pendingInvite : ""}">Google로 로그인</a><p role="status">${escape(message)}</p><a href="/">기존 내 PC 장부 열기</a></main>`;
+  app.innerHTML = `<main class="login"><div class="mark">c</div><p class="eyebrow">CAFE ADMIN</p><h1>같이 기록하는<br>우리 카페 장부</h1><p>카페의 매출과 운영 기록을<br>허용된 멤버와 함께 관리합니다.</p><a class="button" href="/auth/google/start${pendingInvite ? "?invite=" + pendingInvite : ""}">Google로 로그인</a><p role="status">${escape(message)}</p><a href="/">기존 내 PC 장부 열기</a><a href="/privacy.html">개인정보 처리 안내</a></main>`;
 }
 async function init() {
   try {
@@ -107,7 +107,14 @@ async function init() {
       cursor = r.nextCursor;
     } while (cursor);
     render();
-    if (cafes.length) await selectCafe(cafes[0].id);
+    const sheetReturn = new URLSearchParams(location.search);
+    if (sheetReturn.has("sheet")) view = "transfer";
+    if (cafes.length) await selectCafe(cafes.find(c => c.id === sheetReturn.get("cafe"))?.id ?? cafes[0].id);
+    if (sheetReturn.has("sheet")) {
+      const connected = sheetReturn.get("sheet") === "connected";
+      status(connected ? "구글 시트를 연결했습니다. 첫 동기화를 시작합니다." : "구글 시트를 연결하지 못했습니다. 같은 구글 계정으로 권한에 동의하고 다시 시도해 주세요.", !connected);
+      history.replaceState(null, "", location.pathname);
+    }
     if (pendingInvite) await showInvite();
   } catch (e) {
     clear();

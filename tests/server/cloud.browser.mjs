@@ -245,6 +245,9 @@ test(
       fullPage: true,
     });
     await owner.locator("[data-view=transfer]").click();
+    await owner.getByRole("button", { name: "구글 시트 만들고 연결", exact: true }).waitFor();
+    await owner.getByText("아직 연결된 시트가 없습니다.", { exact: false }).waitFor();
+    assert.equal(await owner.locator("#google-sheet-open").isVisible(), false);
     await owner.locator("#export-start").click();
     await owner.locator("#download-backup").waitFor();
     const downloaded = owner.waitForEvent("download");
