@@ -16,7 +16,7 @@
     "format": "prettier --write src tests index.html package.json tsconfig.json playwright.config.ts",
     "check": "pnpm test && pnpm build && pnpm test:browser",
     "test:server": "node --experimental-strip-types --test tests/server/*.test.mjs",
-    "test:d1": "node --experimental-strip-types --test tests/server/*.d1.mjs",
+    "test:d1": "node --experimental-strip-types --test --test-concurrency=1 tests/server/*.d1.mjs",
     "dev:worker": "pnpm build && wrangler dev --local --persist-to /tmp/cafe-admin-w04-local",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --persist-to /tmp/cafe-admin-w04-local",
     "check:backend": "pnpm test && pnpm test:server && pnpm test:d1 && pnpm build && pnpm test:worker && pnpm build:worker",

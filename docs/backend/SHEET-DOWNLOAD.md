@@ -11,3 +11,5 @@
 검증: `pnpm check:backend`, `PLAYWRIGHT_CHANNEL=chrome pnpm test:cloud`, `node --test tests/sheet-export.test.mjs`. 실제 브라우저 다운로드, 완료 후 잠금 해제, 빈 장부, 수치·빈칸·한글·XML·ZIP CRC·수식 형태 텍스트·삭제 행 제외·재고 단위·계정 식별자 제외를 확인한다.
 
 대상: 기존 `cafe-admin-test` Worker와 기존 D1. 사용자가 현재 서비스의 갱신을 요청했으며 별도 운영 DB를 생성하거나 자료를 이전하지 않는다. 배포 전 활성 버전: `ebb8dc14-083e-4507-abea-a7c550ba276b` (코드 롤백 대상). 기존 두 secret을 유지한다.
+
+CI에서 여러 Miniflare DB 테스트가 성능 측정과 동시에 실행되어 10명 부하의 2초 기준을 넘었다. D1 테스트 파일은 `--test-concurrency=1`로 격리 실행한다. 내부의 10명 동시 사용자 시나리오와 2초 성능 기준은 유지한다.
