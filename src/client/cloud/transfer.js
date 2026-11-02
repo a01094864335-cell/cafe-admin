@@ -1,3 +1,4 @@
+import { scorecards } from "./scorecards.js";
 import { createImportPlan } from "../../shared/import-plan.js";
 const names = {
   sales: "매출",
@@ -75,15 +76,23 @@ export function transferScreen({
   const report = (message, error = false) => {
     if (valid()) status(message, error);
   };
-  const table = (summary) =>
-    '<div class="table-scroll"><table><thead><tr><th>자료</th><th>건수</th><th>합계</th></tr></thead><tbody>' +
+  const table = (summary) => {
+    const cards = document.createElement("div");
+    scorecards(cards, [
+      {label:"매출 기록",value:summary.sales?.count ?? 0,unit:"건"},
+      {label:"구매·지출 기록",value:(summary.purchases?.count ?? 0)+(summary.expenses?.count ?? 0),unit:"건"},
+      {label:"근무 기록",value:summary.work_logs?.count ?? 0,unit:"건"},
+      {label:"재고 품목",value:summary.inventory_items?.count ?? 0,unit:"종"},
+    ],"이전·백업 대상 자료의 전체 건수");
+    return cards.innerHTML + '<div class="table-scroll"><table><thead><tr><th>자료</th><th>건수</th><th>합계</th></tr></thead><tbody>' +
     Object.entries(summary)
       .map(
         ([key, v]) =>
           `<tr><td>${escape(names[key] ?? key)}</td><td>${escape(v.count)}</td><td>${v.total === undefined ? "—" : escape(Number(key === "inventory_items" ? v.total / 100 : v.total).toLocaleString("ko-KR")) + (key === "inventory_items" ? " (수량 합계)" : "원")}</td></tr>`,
       )
       .join("") +
-    "</tbody></table>";
+    "</tbody></table></div>";
+  };
   const mutation = async (path, method = "POST", data = {}) => {
     const identity = method + path + JSON.stringify(data);
     if (!keys.has(identity)) keys.set(identity, crypto.randomUUID());

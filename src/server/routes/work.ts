@@ -1,3 +1,4 @@
+import { sortedRecords } from "../repositories/sorted-records.ts";
 import type { Env } from "../env.ts";
 import type { Scope } from "../repositories/scope.ts";
 import type { Role } from "../services/memberships.ts";
@@ -7,7 +8,6 @@ import { body, fields, fail, json, version, string } from "../http.ts";
 import { date, text, identifier } from "../validation.ts";
 import { command, assertion, changed } from "../services/commands.ts";
 import { dto, datePage } from "../repositories/ledger.ts";
-import { pagination, page } from "../pagination.ts";
 export async function employeeRecord(env: Env, s: Scope, id: string) {
   const row = await env.DB.prepare(
     "SELECT * FROM employees WHERE cafe_id=? AND dataset_id=? AND id=? AND deleted_at IS NULL",
@@ -68,16 +68,7 @@ export async function workRoute(
   if (!writing) {
     if (id) return json(dto(await record()), requestId);
     if (employees) {
-      const p = pagination(
-        request,
-        JSON.stringify([cafeId, s.datasetId, actor.userId, resource]),
-      );
-      const rows = await env.DB.prepare(
-        "SELECT * FROM employees WHERE cafe_id=? AND dataset_id=? AND deleted_at IS NULL AND id>? ORDER BY id LIMIT ?",
-      )
-        .bind(cafeId, s.datasetId, p.after, p.limit + 1)
-        .all<Record<string, unknown>>();
-      return page(rows.results.map(dto), p, "id", requestId);
+      return sortedRecords(env, s, request, actor.userId, requestId, "employees");
     }
     const requested = new URL(request.url).searchParams.get("employeeId");
     if (mine && requested) fail(400, "VALIDATION_ERROR");
@@ -93,9 +84,11 @@ export async function workRoute(
       resource + ":" + (employee ?? ""),
       actor.userId,
     );
-    const rows = (
-      await env.DB.prepare(
-        `SELECT * FROM work_logs WHERE cafe_id=? AND dataset_id=? AND deleted_at IS NULL ${employee ? "AND employee_id=?" : ""} AND business_date BETWEEN ? AND ? AND (business_date>? OR (business_date=? AND id>?)) ORDER BY business_date,id LIMIT ?`,
+    if (!["newest", "oldest"].includes(p.sort)) fail(400, "VALIDATION_ERROR");
+    const direction = p.sort === "oldest" ? "ASC" : "DESC";
+    const compare = p.sort === "oldest" ? ">" : "<";
+    const listQuery = env.DB.prepare(
+        `SELECT * FROM work_logs WHERE cafe_id=? AND dataset_id=? AND deleted_at IS NULL ${employee ? "AND employee_id=?" : ""} AND business_date BETWEEN ? AND ? ${p.lastId ? `AND (business_date,id) ${compare} (?,?)` : ""} ORDER BY business_date ${direction},id ${direction} LIMIT ?`,
       )
         .bind(
           cafeId,
@@ -103,17 +96,23 @@ export async function workRoute(
           ...(employee ? [employee] : []),
           p.from,
           p.to,
-          p.lastDate,
-          p.lastDate,
-          p.lastId,
+          ...(p.lastId ? [p.lastDate, p.lastId] : []),
           p.limit + 1,
         )
-        .all<Record<string, unknown>>()
-    ).results;
+;
+
+    const start = "(cast(substr(start_time,1,2) AS INTEGER)*60+cast(substr(start_time,4,2) AS INTEGER))";
+    const end = "(cast(substr(end_time,1,2) AS INTEGER)*60+cast(substr(end_time,4,2) AS INTEGER))";
+    const minutes = `(${end}-${start}+CASE WHEN ${end}<${start} THEN 1440 ELSE 0 END-break_minutes)`;
+    const complete = `start_time IS NOT NULL AND start_time<>'' AND end_time IS NOT NULL AND end_time<>'' AND break_missing=0 AND ${minutes}>0 AND (${end}-${start}+CASE WHEN ${end}<${start} THEN 1440 ELSE 0 END)<1440 AND (${end}>=${start} OR substr(date(business_date,'+1 day'),1,7)=substr(business_date,1,7))`;
+    const totalsQuery = env.DB.prepare(`SELECT count(*) count,count(DISTINCT business_date) days,coalesce(sum(CASE WHEN ${complete} THEN ${minutes} ELSE 0 END),0) minutes,coalesce(sum(CASE WHEN ${complete} THEN 0 ELSE 1 END),0) incomplete FROM work_logs WHERE cafe_id=? AND dataset_id=? AND deleted_at IS NULL ${employee ? "AND employee_id=?" : ""} AND business_date BETWEEN ? AND ?`).bind(cafeId,s.datasetId,...(employee ? [employee] : []),p.from,p.to);
+    const result = await env.DB.batch<Record<string, any>>([listQuery, totalsQuery]);
+    const rows = result[0].results, summary = result[1].results[0];
     const data = rows.slice(0, p.limit),
       last = data.at(-1);
     return Response.json(
       {
+        summary,
         data: data.map(dto),
         nextCursor:
           rows.length > p.limit

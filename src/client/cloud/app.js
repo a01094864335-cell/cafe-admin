@@ -1,9 +1,11 @@
+import { scorecards } from "./scorecards.js";
+import { costCategories } from "../../shared/cost-categories.js";
 import { createApi } from "./http.js";
 import { auditScreen } from "./audit.js";
 import { transferScreen } from "./transfer.js";
 import { membersScreen } from "./members.js";
-import { payrollScreen } from "./payroll.js";
-import { workScreen } from "./work.js";
+import { teamScreen } from "./team.js";
+import { dashboardScreen } from "./dashboard.js";
 import { inventoryScreen } from "./inventory.js";
 import "./styles.css";
 const app = document.querySelector("#cloud-app");
@@ -113,7 +115,7 @@ async function init() {
   }
 }
 function render() {
-  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="dashboard">손익 요약</button><button data-view="payroll">급여</button><button data-view="work">직원 · 근무</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button><button data-view="transfer">자료 이전 · 백업</button><button data-view="audit">변경 이력</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
+  app.innerHTML = `<div class="layout"><aside><a class="brand" href="/cloud.html"><span class="mark">c</span><span>Cafe Admin<small>함께 쓰는 운영 장부</small></span></a><label for="cafe">현재 카페</label><select id="cafe"><option value="">카페를 선택하세요</option>${cafes.map((c) => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join("")}</select><p id="role"></p>${me.canCreateCafe ? '<button id="create-cafe" class="secondary">카페 만들기</button>' : ""}<nav><button class="selected" data-view="dashboard">대시보드</button><button data-view="sales">일별 매출</button><button data-view="purchases">매입</button><button data-view="expenses">비용</button><button data-view="other-incomes">기타 수입</button><button data-view="work">근무 · 급여</button><button data-view="inventory">재고</button><button data-view="members">멤버 · 초대</button><button data-view="transfer">자료 이전 · 백업</button><button data-view="audit">변경 이력</button></nav><div class="aside-bottom"><span>${escape(me.name)}</span><button id="logout" class="secondary">로그아웃</button><a href="/">내 PC 장부</a></div></aside><main><header><div><p class="eyebrow">SHARED WORKSPACE</p><h1 id="title">카페를 선택하세요</h1></div><button id="refresh" class="secondary">새로고침</button></header><p id="status" role="status" aria-live="polite">서버에 저장한 자료를 불러옵니다.</p><section id="content"></section></main></div>`;
   document
     .querySelector("#create-cafe")
     ?.addEventListener("click", async () => {
@@ -165,9 +167,11 @@ function render() {
     document.querySelector("#content").innerHTML =
       '<div class="empty"><h2>아직 참여한 카페가 없습니다</h2><p>카페 만들기로 내 카페를 시작하거나, 소유자에게 초대 링크를 받아 참여해 주세요.</p></div>';
 }
+const isCost = () => view === "purchases" || view === "expenses";
 let stockItems = [];
 let inventoryRefresh = null;
-let view = "sales",
+const dashboardRanges = new Map();
+let view = "dashboard",
   rows = [],
   cursor = null,
   readGeneration = 0;
@@ -241,26 +245,32 @@ async function renderView() {
     });
     return;
   }
-  if (["dashboard", "payroll"].includes(view)) {
+  if (view === "dashboard") {
     const ticket = generation;
-    inventoryRefresh = payrollScreen({
+    inventoryRefresh = dashboardScreen({
       root: el,
       cafe: current,
       api,
       escape,
       status,
-      dashboard: view === "dashboard",
       valid: () => ticket === generation,
-      dirty: (value) => {
-        dirty = value;
+      range: dashboardRanges.get(current.id),
+      onRange: (range) => dashboardRanges.set(current.id, range),
+      navigate: async (next, options = {}) => {
+        view = next === "payroll" ? "work" : next;
+        await renderView();
+        if (options.record) {
+          const form = el.querySelector(view === "work" ? "#work-form" : view === "inventory" ? "#inventory-form" : "#sale-form");
+          form?.scrollIntoView({ block: "center" });
+          form?.querySelector("input:not([disabled]), select:not([disabled])")?.focus();
+        }
       },
-      canLeave: () => !dirty || confirm("저장하지 않은 입력을 버릴까요?"),
     });
     return;
   }
   if (view === "work") {
     const ticket = generation;
-    inventoryRefresh = workScreen({
+    inventoryRefresh = teamScreen({
       root: el,
       cafe: current,
       staff: current.role === "staff",
@@ -268,9 +278,7 @@ async function renderView() {
       escape,
       status,
       valid: () => ticket === generation,
-      dirty: (value) => {
-        dirty = value;
-      },
+      dirty: (value) => { dirty = value; },
       canLeave: () => !dirty || confirm("저장하지 않은 입력을 버릴까요?"),
     });
     return;
@@ -310,7 +318,7 @@ async function renderView() {
   }
   el.innerHTML =
     salesForm() +
-    `<section class="card"><div class="section-head"><h2>${labels[view]} 내역</h2><div class="filters"><label>시작일<input id="from" type="date"></label><label>종료일<input id="to" type="date"></label><button id="filter" class="secondary">조회</button></div></div><div id="records"></div><button id="more" class="secondary" hidden>더 보기</button></section>`;
+    `<section class="card"><div class="section-head"><h2>${labels[view]} 내역</h2><div class="filters"><label>시작일<input id="from" type="date"></label><label>종료일<input id="to" type="date"></label>${isCost() ? `<label>카테고리<select id="category-filter"><option value="">전체 카테고리</option>${costCategories.map(c => `<option>${escape(c)}</option>`).join("")}</select></label>` : ""}<label>정렬<select id="sort-filter"><option value="newest">최근일</option><option value="oldest">최초일</option><option value="highest">최고액</option><option value="lowest">최소액</option></select></label><button id="filter" class="secondary">조회</button></div></div><div id="list-scorecards" aria-live="polite"></div><div id="records"></div><button id="more" class="secondary" hidden>더 보기</button></section>`;
   const form = document.querySelector("#sale-form");
   if (view === "purchases") {
     const ticket = generation;
@@ -376,6 +384,9 @@ async function refresh(append = false) {
       if (value) q.set(key, value);
     }
   }
+  q.set("sort", document.querySelector("#sort-filter")?.value || "newest");
+  const category = document.querySelector("#category-filter")?.value;
+  if (isCost() && category) q.set("category", category);
   if (append && cursor) q.set("cursor", cursor);
   try {
     const r = await api(`/api/v1/cafes/${cafe}/${activeView}?${q}`, {
@@ -390,6 +401,16 @@ async function refresh(append = false) {
       return;
     rows = append ? [...rows, ...r.data] : r.data;
     cursor = r.nextCursor;
+    if (r.summary) {
+      const s = r.summary, cards = [
+        { label: view === "sales" ? "총 매출" : "금액 합계", value: s.total, unit: "원" },
+        { label: view === "sales" ? "입력된 매출" : "기록 건수", value: s.recorded, unit: view === "sales" ? "건" : "건" },
+        { label: "평균 금액", value: s.recorded ? Math.round(s.total / s.recorded) : null, unit: "원" },
+      ];
+      if (view === "sales") cards.push(...["card","cash","transfer"].map((key,i) => ({label:["카드 매출","현금 매출","계좌이체 매출"][i],value:s[key],unit:"원"})), {label:"금액 미입력", value:s.count-s.recorded,unit:"건"});
+      else cards.push({label:"최고액",value:s.maximum,unit:"원"},{label:"최소액",value:s.minimum,unit:"원"},{label:"환불·차감 합계",value:s.refunds,unit:"원"});
+      scorecards(document.querySelector("#list-scorecards"),cards);
+    }
     drawRows();
     status(
       dirty
@@ -398,6 +419,7 @@ async function refresh(append = false) {
     );
   } catch (e) {
     if (e.name !== "AbortError" && ticket === generation) {
+      document.querySelector("#list-scorecards")?.replaceChildren();
       if (e.code === "UNAUTHENTICATED") {
         clear();
         signedOut(e.message);
@@ -406,6 +428,7 @@ async function refresh(append = false) {
       if (["FORBIDDEN", "NOT_FOUND"].includes(e.code)) {
         rows = [];
         document.querySelector("#records")?.replaceChildren();
+        document.querySelector("#list-scorecards")?.replaceChildren();
       }
       status(e.message, true);
     }
@@ -418,9 +441,12 @@ function drawRows() {
     return;
   }
   el.innerHTML = rows.length
-    ? `<div class="table-scroll"><table><thead><tr><th>영업일</th>${view === "sales" ? "<th>카드</th><th>현금</th><th>계좌이체</th>" : "<th>거래처</th><th>항목</th><th>금액</th>"}<th>메모</th><th>관리</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${escape(r.businessDate)}</td>${view === "sales" ? `<td>${amount(r.card)}</td><td>${amount(r.cash)}</td><td>${amount(r.transfer)}</td>` : `<td>${escape(r.vendor)}</td><td>${escape(r.item)}</td><td>${amount(r.amount)}</td>`}<td>${escape(r.note)}</td><td><button class="text-button" data-edit="${escape(r.id)}">수정</button><button class="text-button danger" data-delete="${escape(r.id)}">삭제</button></td></tr>`).join("")}</tbody></table></div>`
+    ? `<div class="table-scroll"><table><thead><tr><th>영업일</th>${view === "sales" ? "<th>카드</th><th>현금</th><th>계좌이체</th>" : "<th>거래처</th><th>항목</th><th>금액</th>"}${isCost() ? "<th>카테고리</th>" : ""}<th>메모</th><th>관리</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${escape(r.businessDate)}</td>${view === "sales" ? `<td>${amount(r.card)}</td><td>${amount(r.cash)}</td><td>${amount(r.transfer)}</td>` : `<td>${escape(r.vendor)}</td><td>${escape(r.item)}</td><td>${amount(r.amount)}</td>`}${isCost() ? `<td>${escape(r.category)}</td>` : ""}<td>${escape(r.note)}</td><td><button class="text-button" data-edit="${escape(r.id)}">수정</button><button class="text-button danger" data-delete="${escape(r.id)}">삭제</button></td></tr>`).join("")}</tbody></table></div>`
     : '<p class="empty">이 기간에 등록된 기록이 없습니다.</p>';
   document.querySelector("#more").hidden = !cursor;
+  document.querySelector("#sort-filter").onchange = () => refresh();
+  const filter = document.querySelector("#category-filter");
+  if (filter) filter.onchange = () => refresh();
   el.querySelectorAll("[data-edit]").forEach(
     (b) =>
       (b.onclick = () => {

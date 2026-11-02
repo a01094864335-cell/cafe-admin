@@ -168,3 +168,137 @@ test("dashboard date range includes refunds and other income; inactive datasets 
     400,
   );
 });
+
+test("dashboard flow reconciles base wages, confirmed holiday pay and month-end extras across dates", async (t) => {
+  const { request } = await setup(t);
+  ok(
+    await request("u1", base + "employees/e1", "PATCH", {
+      expectedVersion: 1,
+      hireDate: "2026-09-01",
+      endDate: null,
+    }),
+  );
+  ok(
+    await request("u1", base + "employees/e1/payroll-settings", "PATCH", {
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      firstWeek: "2026-09-28",
+      weeklyHours: 20,
+      holidayDay: "일",
+      normalDays: 5,
+      calculationStart: "2026-01-01",
+      calculationEnd: "2026-12-31",
+      rates: { 2026: 10000 },
+    }),
+  );
+  for (const businessDate of ["2026-10-01", "2026-10-02", "2026-10-03"])
+    ok(
+      await request("u1", base + "work-logs", "POST", {
+        employeeId: "e1",
+        businessDate,
+        startTime: "09:00",
+        endTime: "13:00",
+        breakMinutes: 0,
+      }),
+      201,
+    );
+  ok(
+    await request(
+      "u1",
+      base + "employees/e1/weekly-confirmations/2026-09-28",
+      "PUT",
+      { agreedHours: 20, confirmation: "개근·재직 확인", note: "" },
+    ),
+  );
+  ok(
+    await request("u1", base + "employees/e1/payroll-extras/2026-10", "PUT", {
+      amount: 1234,
+    }),
+  );
+  for (let i = 1; i <= 12; i++)
+    ok(
+      await request("u1", base + "purchases", "POST", {
+        businessDate: "2026-10-02",
+        vendor: "거래처",
+        item: "구매 " + i,
+        amount: i * 100,
+      }),
+      201,
+    );
+  ok(
+    await request("u1", base + "expenses", "POST", {
+      businessDate: "2026-10-03",
+      item: "환불",
+      amount: -500,
+    }),
+    201,
+  );
+  ok(
+    await request("u1", base + "sales", "POST", {
+      businessDate: "2026-10-05",
+      card: null,
+      cash: null,
+      transfer: null,
+      note: "메모만 기록",
+    }),
+    201,
+  );
+  ok(
+    await request("u1", base + "other-incomes", "POST", {
+      businessDate: "2026-10-06",
+      item: "기타",
+      amount: 3000,
+    }),
+    201,
+  );
+  const r = ok(
+    await request("u1", base + "dashboard?from=2026-10-01&to=2026-10-31"),
+  );
+  const p = ok(
+    await request("u1", base + "payroll?from=2026-10-01&to=2026-10-31"),
+  ).employees[0];
+  assert.equal(r.hours, 12);
+  assert.equal(
+    r.recent.find((x) => x.type === "sale" && x.date === "2026-10-05").amount,
+    null,
+  );
+  assert.equal(
+    r.daily.some((x) => x.date === "2026-10-05"),
+    false,
+  );
+  assert.deepEqual(r.bounds, { first: "2026-10-01", last: "2026-10-06" });
+  assert.equal(r.purchaseCount, 13);
+  assert.equal(r.recorded, 1);
+  assert.equal(r.recent.filter((x) => x.type === "purchase").length, 8);
+  assert.equal(r.recent.filter((x) => x.type === "shift").length, 3);
+  assert.equal(
+    r.daily.reduce((s, x) => s + x.income, 0),
+    r.income,
+  );
+  assert.equal(
+    r.daily.reduce((s, x) => s + x.cost, 0),
+    r.cost,
+  );
+  assert.equal(r.daily.find((x) => x.date === "2026-10-04").cost, p.holiday);
+  assert.equal(r.daily.find((x) => x.date === "2026-10-31").cost, 1234);
+  assert.equal(r.daily.find((x) => x.date === "2026-10-03").cost, 39500);
+  assert.equal(r.wages, p.total);
+  const early = ok(
+    await request("u1", base + "dashboard?from=2026-10-02&to=2026-10-03"),
+  );
+  assert.equal(early.hours, 8);
+  assert.equal(
+    early.daily.reduce((s, x) => s + x.cost, 0),
+    early.cost,
+  );
+  assert.equal(early.daily.length, 2);
+  assert.equal(
+    (
+      await request(
+        "u1",
+        "/api/v1/cafes/b/dashboard?from=2026-10-01&to=2026-10-31",
+      )
+    ).status,
+    403,
+  );
+});

@@ -1,3 +1,4 @@
+import { scorecards } from "./scorecards.js";
 export function payrollScreen({
   root,
   cafe,
@@ -18,7 +19,7 @@ export function payrollScreen({
     editing = null;
   const input = (name, label, type = "text", value = "", extra = "") =>
     `<label>${label}<input name="${name}" type="${type}" value="${value}" ${extra}></label>`;
-  root.innerHTML = `<section class="card"><h2>${dashboard ? "카페 손익" : "급여 집계"}</h2><div class="filters"><label>시작일<input id="summary-from" type="date" value="${today.slice(0, 7)}-01"></label><label>종료일<input id="summary-to" type="date" value="${today}"></label><button id="summary-refresh" class="secondary">조회</button></div><div id="summary"></div></section>${dashboard ? "" : `<section class="card"><h2>직원별 급여 설정</h2><label>직원<select id="payroll-employee"></select></label><p>급여 기준은 적용 기간별로 관리합니다. 설정이 없거나 확인되지 않은 항목은 미확정으로 표시합니다.</p><div id="settings-list"></div><form id="settings-form">${input("effectiveFrom", "적용 시작일", "date", today, "required")}${input("effectiveTo", "적용 종료일", "date")}${input("firstWeek", "첫 주 시작일", "date")}${input("weeklyHours", "주 약정 시간", "number", "20", 'min="0" step="0.01" required')}<label>주휴일<select name="holidayDay"><option value="">미설정</option>${["일", "월", "화", "수", "목", "금", "토"].map((d) => `<option>${d}</option>`).join("")}</select></label>${input("normalDays", "통상 근로 일수", "number", "5", 'min="0.01" max="7" step="0.01" required')}${input("calculationStart", "계산 시작일", "date", today.slice(0, 4) + "-01-01", "required")}${input("calculationEnd", "계산 종료일", "date", today.slice(0, 4) + "-12-31", "required")}<label class="wide">연도별 시급(원)<textarea name="rates" rows="3" required placeholder='{"2026":10000}'>${escape(JSON.stringify({ [today.slice(0, 4)]: null }))}</textarea></label><div class="form-actions"><button>설정 저장</button><button type="button" id="settings-new" class="secondary">새 기간</button></div></form></section><section class="card"><h2>주별 확인</h2><form id="weekly-form">${input("week", "주 시작일", "date", "", "required")}${input("agreedHours", "약정 시간(빈칸=설정값)", "number", "", 'min="0" step="0.01"')}<label>확인<select name="confirmation">${["미확인", "개근·재직 확인", "결근", "검토필요"].map((v) => `<option>${v}</option>`).join("")}</select></label>${input("note", "메모")}<button type="button" id="weekly-load" class="secondary">불러오기</button><button>확인 저장</button></form></section><section class="card"><h2>월별 기타 수당</h2><form id="extra-form">${input("month", "대상 월", "month", today.slice(0, 7), "required")}${input("amount", "수당(원)", "number", "", 'step="1"')}<button type="button" id="extra-load" class="secondary">불러오기</button><button>수당 저장</button></form></section>`}`;
+  root.innerHTML = `<section class="card"><h2>${dashboard ? "카페 손익" : "급여 집계"}</h2><div class="filters"><label>시작일<input id="summary-from" type="date" value="${today.slice(0, 7)}-01"></label><label>종료일<input id="summary-to" type="date" value="${today}"></label><label>정렬<select id="payroll-sort"><option value="newest">최근일</option><option value="oldest">최초일</option><option value="highest">최고액</option><option value="lowest">최소액</option></select></label><button id="summary-refresh" class="secondary">조회</button></div><div id="payroll-scorecards" aria-live="polite"></div><div id="summary"></div></section>${dashboard ? "" : `<section class="card"><h2>직원별 급여 설정</h2><label>직원<select id="payroll-employee"></select></label><p>급여 기준은 적용 기간별로 관리합니다. 설정이 없거나 확인되지 않은 항목은 미확정으로 표시합니다.</p><div id="settings-list"></div><form id="settings-form">${input("effectiveFrom", "적용 시작일", "date", today, "required")}${input("effectiveTo", "적용 종료일", "date")}${input("firstWeek", "첫 주 시작일", "date")}${input("weeklyHours", "주 약정 시간", "number", "20", 'min="0" step="0.01" required')}<label>주휴일<select name="holidayDay"><option value="">미설정</option>${["일", "월", "화", "수", "목", "금", "토"].map((d) => `<option>${d}</option>`).join("")}</select></label>${input("normalDays", "통상 근로 일수", "number", "5", 'min="0.01" max="7" step="0.01" required')}${input("calculationStart", "계산 시작일", "date", today.slice(0, 4) + "-01-01", "required")}${input("calculationEnd", "계산 종료일", "date", today.slice(0, 4) + "-12-31", "required")}<label class="wide">연도별 시급(원)<textarea name="rates" rows="3" required placeholder='{"2026":10000}'>${escape(JSON.stringify({ [today.slice(0, 4)]: null }))}</textarea></label><div class="form-actions"><button>설정 저장</button><button type="button" id="settings-new" class="secondary">새 기간</button></div></form></section><section class="card"><h2>주별 확인</h2><form id="weekly-form">${input("week", "주 시작일", "date", "", "required")}${input("agreedHours", "약정 시간(빈칸=설정값)", "number", "", 'min="0" step="0.01"')}<label>확인<select name="confirmation">${["미확인", "개근·재직 확인", "결근", "검토필요"].map((v) => `<option>${v}</option>`).join("")}</select></label>${input("note", "메모")}<button type="button" id="weekly-load" class="secondary">불러오기</button><button>확인 저장</button></form></section><section class="card"><h2>월별 기타 수당</h2><form id="extra-form">${input("month", "대상 월", "month", today.slice(0, 7), "required")}${input("amount", "수당(원)", "number", "", 'step="1"')}<button type="button" id="extra-load" class="secondary">불러오기</button><button>수당 저장</button></form></section>`}`;
   let read = 0;
   async function refresh() {
     const ticket = ++read;
@@ -33,6 +34,23 @@ export function payrollScreen({
           )
         ).data;
       if (!valid() || ticket !== read) return;
+      const sort = root.querySelector("#payroll-sort").value;
+      if (r.employees) {
+        const workDate = (employee, first) => employee.work.map(w => w.businessDate).sort()[first ? 0 : employee.work.length - 1] ?? (first ? "9999-12-31" : "0000-01-01");
+        r.employees.sort((a,b) => sort === "highest" ? b.total-a.total : sort === "lowest" ? a.total-b.total : sort === "oldest" ? workDate(a,true).localeCompare(workDate(b,true)) : workDate(b,false).localeCompare(workDate(a,false)));
+        for (const employee of r.employees) {
+          employee.work.sort((a,b) => sort === "highest" ? (b.base ?? -Infinity)-(a.base ?? -Infinity) : sort === "lowest" ? (a.base ?? Infinity)-(b.base ?? Infinity) : sort === "oldest" ? a.businessDate.localeCompare(b.businessDate) : b.businessDate.localeCompare(a.businessDate));
+          employee.weekly.sort((a,b) => b.date.localeCompare(a.date));
+        }
+      }
+      if(r.employees) scorecards(root.querySelector("#payroll-scorecards"),[
+        {label:"세전 급여 합계",value:r.total,unit:"원",hint:r.pending ? "미확정 항목 있음 · 입력분 합산" : "입력된 급여 기준"},
+        {label:"기본급",value:r.employees.reduce((s,e)=>s+e.base,0),unit:"원"},
+        {label:"주휴수당",value:r.employees.reduce((s,e)=>s+e.holiday,0),unit:"원"},
+        {label:"기타 수당",value:r.employees.reduce((s,e)=>s+e.extra,0),unit:"원"},
+        {label:"집계 직원",value:r.employees.length,unit:"명"},
+        {label:"미확정 직원",value:r.employees.filter(e=>e.pending).length,unit:"명"},
+      ]);
       const out = root.querySelector("#summary");
       out.innerHTML = dashboard
         ? `<div class="summary-grid">${Object.entries({
@@ -62,12 +80,14 @@ export function payrollScreen({
       status("선택 기간의 최신 집계입니다.");
     } catch (e) {
       if (valid()) {
+        root.querySelector("#payroll-scorecards")?.replaceChildren();
         if (["FORBIDDEN", "NOT_FOUND", "UNAUTHENTICATED"].includes(e.code))
-          root.querySelector("#summary").replaceChildren();
+          { root.querySelector("#summary").replaceChildren(); root.querySelector("#payroll-scorecards").replaceChildren(); }
         status(e.message, true);
       }
     }
   }
+  root.querySelector("#payroll-sort").onchange = refresh;
   root.querySelector("#summary-refresh").onclick = refresh;
   if (!dashboard) {
     const form = root.querySelector("#settings-form"),
@@ -99,7 +119,7 @@ export function payrollScreen({
         cursor = r.nextCursor;
       } while (cursor && valid());
       if (!valid() || ticket !== settingsRead || employee !== selected) return;
-      settings = loaded;
+      settings = loaded.sort((a,b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
       root.querySelector("#settings-list").innerHTML =
         settings
           .map(
@@ -236,7 +256,7 @@ export function payrollScreen({
         data.expectedVersion = extraVersion;
       save(employeePath() + "payroll-extras/" + value, data, loadExtra);
     };
-    (async () => {
+    async function loadEmployees() {
       try {
         let cursor = null,
           employees = [];
@@ -254,7 +274,8 @@ export function payrollScreen({
         select.innerHTML = employees
           .map((e) => `<option value="${e.id}">${escape(e.name)}</option>`)
           .join("");
-        selected = employees[0]?.id ?? "";
+        if (!employees.some(e => e.id === selected)) selected = employees[0]?.id ?? "";
+        select.value = selected;
         select.onchange = () => {
           if (saving || !canLeave()) {
             select.value = selected;
@@ -278,7 +299,9 @@ export function payrollScreen({
       } catch (e) {
         if (valid()) status(e.message, true);
       }
-    })();
+    }
+    refresh.reloadEmployees = loadEmployees;
+    loadEmployees();
   }
   refresh();
   return refresh;

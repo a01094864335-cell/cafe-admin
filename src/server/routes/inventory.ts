@@ -1,3 +1,4 @@
+import { sortedRecords } from "../repositories/sorted-records.ts";
 import type { Env } from "../env.ts";
 import type { Scope } from "../repositories/scope.ts";
 import { ledgerScope, scopeGuards } from "../repositories/scope.ts";
@@ -6,7 +7,6 @@ import { body, fields, fail, json, version, string } from "../http.ts";
 import { command, changed } from "../services/commands.ts";
 import { hundredths, money, text, identifier } from "../validation.ts";
 import { dto } from "../repositories/ledger.ts";
-import { pagination, page } from "../pagination.ts";
 export async function inventoryRecord(
   env: Env,
   s: Scope,
@@ -83,29 +83,7 @@ export async function inventoryRoute(
       const item = await inventoryRecord(env, s, id);
       if (!history) return json(dto(item), requestId);
     }
-    const p = pagination(
-      request,
-      JSON.stringify([
-        cafeId,
-        s.datasetId,
-        actor.userId,
-        id ?? "",
-        history ? "movements" : "inventory",
-      ]),
-    );
-    const table = history ? "inventory_movements" : "inventory_items";
-    const rows = await env.DB.prepare(
-      `SELECT * FROM ${table} WHERE cafe_id=? AND dataset_id=? AND deleted_at IS NULL ${history && id ? "AND item_id=?" : ""} AND id>? ORDER BY id LIMIT ?`,
-    )
-      .bind(
-        cafeId,
-        s.datasetId,
-        ...(history && id ? [id] : []),
-        p.after,
-        p.limit + 1,
-      )
-      .all<Record<string, unknown>>();
-    return page(rows.results.map(dto), p, "id", requestId);
+    return sortedRecords(env, s, request, actor.userId, requestId, history ? "inventory_movements" : "inventory_items", history ? undefined : "cost", history ? id : undefined);
   }
   await csrf(request, env, actor);
   const input = await body(request),

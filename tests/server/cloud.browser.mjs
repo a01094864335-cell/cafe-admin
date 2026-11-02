@@ -110,6 +110,16 @@ test(
     await newcomer
       .getByRole("button", { name: "카페 만들기", exact: true })
       .click();
+    await newcomer.locator(".cloud-dashboard .stats").waitFor();
+    await newcomer.getByText("아직 흐름을 그릴 기록이 없어요.").waitFor();
+    await newcomer.locator("#dashboard-record").click();
+    await newcomer.getByRole("dialog").waitFor();
+    assert.equal(await newcomer.locator("[data-record]").count(), 6);
+    await newcomer.keyboard.press("Escape");
+    await newcomer.getByRole("dialog").waitFor({ state: "hidden" });
+    await newcomer.locator("#dashboard-record").click();
+    await newcomer.locator('[data-record="sales"]').click();
+    await newcomer.locator("#sale-form").waitFor();
     await newcomer.locator("#sale-form").waitFor();
     const newcomerCafe = await newcomer.locator("#cafe").inputValue();
     assert.ok(newcomerCafe);
@@ -141,6 +151,10 @@ test(
       admin = await b.newPage();
     await owner.goto(origin + "/cloud.html");
     await admin.goto(origin + "/cloud.html");
+    for (const page of [owner, admin]) {
+      await page.locator(".cloud-dashboard .stats").waitFor();
+      await page.locator("[data-view=sales]").click();
+    }
     await owner
       .locator("#sale-form")
       .waitFor({ timeout: 10000 })
@@ -203,6 +217,34 @@ test(
     owner.once("dialog", (d) => d.accept());
     await owner.locator("#import-commit").click();
     await owner.getByText("장부에 적용했습니다.", { exact: true }).waitFor();
+    await owner.locator("[data-view=dashboard]").click();
+    await owner.locator("#summary-from").fill("2026-10-01");
+    await owner.locator("#summary-to").fill("2026-10-31");
+    await owner.getByRole("button", { name: "기간 적용", exact: true }).click();
+    await owner.locator(".stat-value").filter({ hasText: "110,000" }).waitFor();
+    await owner.locator(".flow-chart svg").waitFor();
+    assert.match(await owner.locator(".insight-row").innerText(), /3건의 구매/);
+    await owner.locator('[data-tab="shift"]').click();
+    assert.equal(await owner.locator("#dashboard-ledger tbody tr").count(), 2);
+    await owner.locator('[data-tab="sale"]').click();
+    assert.equal(await owner.locator("#dashboard-ledger tbody tr").count(), 4);
+    await owner.getByRole("button", { name: "전체 기록", exact: true }).click();
+    await owner
+      .getByText("선택 기간의 최신 집계입니다.", { exact: true })
+      .waitFor();
+    assert.equal(
+      await owner.locator("#summary-from").inputValue(),
+      "2026-10-01",
+    );
+    assert.equal(await owner.locator("#summary-to").inputValue(), "2026-10-04");
+    await owner.locator("#summary-to").fill("2026-10-31");
+    await owner.getByRole("button", { name: "기간 적용", exact: true }).click();
+    await owner.locator(".flow-chart svg").waitFor();
+    await owner.screenshot({
+      path: "/tmp/cafe-dashboard-desktop.png",
+      fullPage: true,
+    });
+    await owner.locator("[data-view=transfer]").click();
     await owner.locator("#export-start").click();
     await owner.locator("#download-backup").waitFor();
     const downloaded = owner.waitForEvent("download");
@@ -269,6 +311,13 @@ test(
     await admin.waitForFunction(
       () => document.querySelector("#employee-select")?.options.length > 1,
     );
+    await admin.locator("#work-scorecards .scorecard").first().waitFor();
+    await admin.locator("#payroll-scorecards .scorecard").first().waitFor();
+    await admin.locator("#employee-new").click();
+    await admin.locator("#employee-form [name=hourlyRate]").fill("10320");
+    await admin.locator("#employee-form [name=weeklyHours]").fill("20");
+    await admin.locator("#employee-form [name=firstWeek]").fill("2026-10-01");
+    await admin.locator("#employee-form [name=holidayDay]").selectOption("일");
     await admin.locator("#employee-form [name=name]").fill("브라우저 직원");
     await admin.locator("#employee-form [name=hireDate]").fill("2026-10-01");
     await admin.locator("#employee-form button").first().click();
@@ -319,7 +368,7 @@ test(
         });
       },
     );
-    await admin.locator("[data-view=payroll]").click();
+    await admin.locator("[data-view=work]").click();
     await admin
       .locator("#payroll-employee option")
       .filter({ hasText: "브라우저 직원" })
@@ -334,17 +383,18 @@ test(
     );
     releaseOldSettings();
     await oldSettingsResponse;
-    await admin.getByText("저장된 설정이 없습니다.").waitFor();
+    await admin.locator("#settings-list [data-setting]").waitFor();
     assert.equal(
       await admin.locator('[data-setting="stale-setting"]').count(),
       0,
     );
     await admin.unroute("**/api/v1/cafes/a/employees/e1/payroll-settings");
+    await admin.locator("#settings-list [data-setting]").first().click();
     await admin.locator("#settings-form [name=firstWeek]").fill("2026-10-05");
     await admin.locator("#settings-form [name=holidayDay]").selectOption("일");
     await admin.locator("#settings-form [name=rates]").fill('{"2026":10000}');
     await admin.locator("#settings-form button").first().click();
-    await admin.locator("[data-setting]").waitFor();
+    await admin.locator("[data-setting]").first().waitFor();
     await admin.locator("[data-view=members]").click();
     await admin
       .locator("#invite-form [name=email]")
@@ -400,7 +450,21 @@ test(
     const mobile = await session("u2", { width: 390, height: 844 }),
       phone = await mobile.newPage();
     await phone.goto(origin + "/cloud.html");
+    await phone.locator(".cloud-dashboard .stats").waitFor();
+    await phone.screenshot({
+      path: "/tmp/cafe-dashboard-mobile.png",
+      fullPage: true,
+    });
+    assert.equal(
+      await phone.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+      true,
+    );
+    await phone.locator("[data-view=sales]").click();
     await phone.locator("#sale-form").waitFor();
+    await phone.locator("#list-scorecards .scorecard").first().waitFor();
+    assert.equal(await phone.locator("#list-scorecards .scorecard").count(), 7);
     await phone.screenshot({
       path: "/tmp/cafe-cloud-mobile.png",
       fullPage: true,

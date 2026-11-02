@@ -1,0 +1,549 @@
+.cloud-dashboard {
+  --border: #e7eaec;
+  --muted: #92999f;
+  color: #30383e;
+}
+.cloud-dashboard .heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.cloud-dashboard .heading h1 {
+  font-size: 27px;
+  font-weight: 650;
+  margin: 8px 0;
+  letter-spacing: -1px;
+}
+.cloud-dashboard .sub {
+  color: #92999f;
+  font-size: 11px;
+  margin: 7px 0 0;
+  line-height: 1.6;
+}
+.cloud-dashboard .heading .sub {
+  font-size: 13px;
+}
+.cloud-dashboard .range-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+.cloud-dashboard .range-picker label {
+  flex-direction: row;
+  align-items: center;
+  font-size: 11px;
+  color: #92979d;
+  gap: 9px;
+}
+.cloud-dashboard .range-picker input {
+  width: 145px;
+  height: 35px;
+  padding: 6px;
+  border-color: var(--border);
+}
+.cloud-dashboard .range-picker button {
+  font-size: 11px;
+  height: 35px;
+  padding: 7px 12px;
+}
+.cloud-dashboard .range-picker small {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+}
+.cloud-dashboard .ghost {
+  background: transparent;
+  border: 0;
+  color: #81868d;
+  padding: 8px;
+  font-size: 11px;
+}
+.cloud-dashboard .stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 26px;
+  background: white;
+  box-shadow: 0 3px 12px #18232c03;
+}
+.cloud-dashboard .stat {
+  padding: 23px 24px;
+  min-height: 143px;
+  border-right: 1px solid var(--border);
+}
+.cloud-dashboard .stat:last-child {
+  border: 0;
+}
+.cloud-dashboard .stat.featured {
+  background: linear-gradient(120deg, #f4faf6, #edf7f2);
+}
+.cloud-dashboard .stat-label {
+  font-size: 12px;
+  color: #70777e;
+  font-weight: 500;
+}
+.cloud-dashboard .stat-value {
+  font-size: 31px;
+  margin: 13px 0 11px;
+  letter-spacing: -1.3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cloud-dashboard .stat-value small {
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 6px;
+}
+.cloud-dashboard .stat-note {
+  font-size: 10px;
+  color: #8b9297;
+  line-height: 1.6;
+}
+.cloud-dashboard .stat.featured .stat-value {
+  color: #14835f;
+}
+.cloud-dashboard .panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 3px 14px #18232c03;
+  min-width: 0;
+  overflow: hidden;
+}
+.cloud-dashboard .panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 24px 5px;
+}
+.cloud-dashboard .section-kicker {
+  display: block;
+  color: #a1a7ad;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  margin-bottom: 7px;
+}
+.cloud-dashboard h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+.cloud-dashboard .panel-body {
+  padding: 20px 24px 24px;
+}
+.cloud-dashboard .overview-flow {
+  margin-bottom: 18px;
+}
+.cloud-dashboard .overview-flow .panel-body {
+  padding-top: 26px;
+}
+.cloud-dashboard .flow-totals {
+  display: flex;
+  gap: 32px;
+  flex-shrink: 0;
+}
+.cloud-dashboard .flow-totals > div {
+  display: grid;
+  gap: 7px;
+}
+.cloud-dashboard .flow-totals span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9299a0;
+  font-size: 10px;
+}
+.cloud-dashboard .flow-totals b {
+  font-size: 19px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+}
+.cloud-dashboard .dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.cloud-dashboard .dot.green {
+  background: #15966d;
+}
+.cloud-dashboard .dot.gray {
+  background: #9aa4b2;
+}
+.cloud-dashboard .flow-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 330px;
+}
+.cloud-dashboard .chart-text {
+  font:
+    11px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  fill: #969ea5;
+}
+.cloud-dashboard .flow-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: #959ca3;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.cloud-dashboard .chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 230px;
+  gap: 12px;
+  color: var(--muted);
+  background: linear-gradient(#fff, #fafbfa);
+}
+.cloud-dashboard .chart-empty small {
+  font-size: 11px;
+}
+.cloud-dashboard .insight-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 28px;
+  background: #fcfdfd;
+}
+.cloud-dashboard .insight-row > div {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-right: 1px solid var(--border);
+}
+.cloud-dashboard .insight-row > div:last-child {
+  border: 0;
+}
+.cloud-dashboard .insight-icon {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  background: #f0f3f1;
+  border: 1px solid #e8ede9;
+  border-radius: 8px;
+  color: #638171;
+  flex-shrink: 0;
+}
+.cloud-dashboard .insight-row p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.cloud-dashboard .insight-row b {
+  font-size: 12px;
+  font-weight: 550;
+}
+.cloud-dashboard .insight-row small {
+  font-size: 10px;
+  color: #949ba0;
+  line-height: 1.6;
+}
+.cloud-dashboard .insight-row button {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.cloud-dashboard .dashboard-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  gap: 22px;
+}
+.cloud-dashboard .dashboard-aside {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+.cloud-dashboard .dashboard-aside .panel-head {
+  padding: 22px 20px 0;
+}
+.cloud-dashboard .dashboard-aside .panel-body {
+  padding: 24px 20px;
+}
+.cloud-dashboard .cost-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-bottom: 22px;
+  font-size: 11px;
+}
+.cloud-dashboard .cost-row b {
+  font-weight: 550;
+}
+.cloud-dashboard .track {
+  height: 4px;
+  grid-column: span 2;
+  background: #f0f3f1;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.cloud-dashboard .track span {
+  display: block;
+  height: 100%;
+  background: #15966d;
+}
+.cloud-dashboard .cost-row:nth-child(2) .track span {
+  background: #a1beb0;
+}
+.cloud-dashboard .cost-row:nth-child(3) .track span {
+  background: #526d62;
+}
+.cloud-dashboard .total-line {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 12px;
+  gap: 10px;
+}
+.cloud-dashboard .ledger-panel .panel-head {
+  padding-bottom: 18px;
+}
+.cloud-dashboard .ledger-tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+.cloud-dashboard .ledger-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 11px 1px;
+  color: #969ca2;
+  background: none;
+  font-size: 12px;
+}
+.cloud-dashboard .ledger-tabs button.selected {
+  color: #246d51;
+  border-bottom-color: #246d51;
+  font-weight: 600;
+}
+.cloud-dashboard table {
+  font-size: 11px;
+}
+.cloud-dashboard th {
+  font-size: 10px;
+  background: #fafbfc;
+}
+.cloud-dashboard th,
+.cloud-dashboard td {
+  padding: 14px 16px;
+}
+.cloud-dashboard .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cloud-dashboard .positive {
+  color: #14835f;
+}
+.cloud-dashboard .transaction-cell {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 330px;
+  white-space: normal;
+  min-width: 150px;
+  overflow-wrap: anywhere;
+}
+.cloud-dashboard .transaction-cell b {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+  line-height: 1.5;
+}
+.cloud-dashboard .transaction-cell small {
+  display: block;
+  font-size: 10px;
+  color: #969da3;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+.cloud-dashboard .transaction-icon {
+  width: 33px;
+  height: 33px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid #eaeced;
+  background: #f7f8f9;
+  color: #8a9198;
+  font-size: 16px;
+}
+.cloud-dashboard .transaction-icon.sale {
+  background: #f0f8f4;
+  color: #19845e;
+  border-color: #e5f0e9;
+}
+.cloud-dashboard .review-card {
+  padding: 22px;
+  background: #f5f8f6;
+  border: 1px solid #e4ece6;
+  border-radius: 12px;
+}
+.cloud-dashboard .review-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  background: #d2ab59;
+  border-radius: 50%;
+  margin-bottom: 15px;
+}
+.cloud-dashboard .review-card h3 {
+  font-size: 13px;
+}
+.cloud-dashboard .review-card p {
+  font-size: 11px;
+  color: #8c9690;
+  line-height: 1.9;
+  margin-bottom: 18px;
+}
+.cloud-dashboard .review-card button {
+  width: 100%;
+  font-size: 11px;
+}
+@media (max-width: 1250px) {
+  .cloud-dashboard .stat {
+    padding: 22px 16px;
+  }
+  .cloud-dashboard .stat-value {
+    font-size: 25px;
+  }
+  .cloud-dashboard .dashboard-bottom {
+    grid-template-columns: minmax(0, 1fr) 245px;
+  }
+  .cloud-dashboard .insight-row > div {
+    padding: 16px 12px;
+    gap: 8px;
+  }
+}
+@media (max-width: 1050px) {
+  .cloud-dashboard .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cloud-dashboard .stat:nth-child(2) {
+    border-right: 0;
+  }
+  .cloud-dashboard .stat:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+  .cloud-dashboard .dashboard-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cloud-dashboard .dashboard-aside {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cloud-dashboard .insight-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cloud-dashboard .insight-row > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+@media (max-width: 600px) {
+  .cloud-dashboard .heading {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .cloud-dashboard .heading h1 {
+    font-size: 23px;
+  }
+  .cloud-dashboard .heading .sub {
+    font-size: 11px;
+  }
+  .cloud-dashboard .heading > button {
+    white-space: nowrap;
+    padding: 10px 14px;
+  }
+  .cloud-dashboard .range-picker label {
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cloud-dashboard .range-picker input {
+    width: 100%;
+    min-width: 0;
+    font-size: 12px;
+  }
+  .cloud-dashboard .range-picker > span {
+    align-self: center;
+    padding-top: 22px;
+  }
+  .cloud-dashboard .range-picker small {
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .cloud-dashboard .stat {
+    padding: 18px 14px;
+    min-height: 128px;
+  }
+  .cloud-dashboard .stat-value {
+    font-size: 22px;
+    letter-spacing: -1px;
+  }
+  .cloud-dashboard .stat-value small {
+    font-size: 10px;
+    margin-left: 3px;
+  }
+  .cloud-dashboard .stat-label {
+    font-size: 11px;
+  }
+  .cloud-dashboard .panel-head {
+    padding: 20px 16px 5px;
+  }
+  .cloud-dashboard .panel-body {
+    padding: 20px 16px;
+  }
+  .cloud-dashboard .overview-flow .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .cloud-dashboard .flow-totals {
+    gap: 30px;
+  }
+  .cloud-dashboard .flow-chart {
+    overflow-x: auto;
+  }
+  .cloud-dashboard .flow-chart svg {
+    min-width: 580px;
+  }
+  .cloud-dashboard .dashboard-aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cloud-dashboard .ledger-tabs {
+    padding: 0 16px;
+  }
+}
+
+.cloud-record-picker { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; border: 1px solid #e7eaec; border-radius: 20px; padding: 24px; color: #30383e; box-shadow: 0 24px 80px #0003; }
+.cloud-record-picker::backdrop { background: #18262280; }
+.cloud-record-picker .picker-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cloud-record-picker h2 { margin: 0; font-size: 22px; }
+.cloud-record-picker p { color: #66736e; }
+.cloud-record-picker .picker-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0; }
+.cloud-record-picker .picker-choices button { text-align: left; padding: 18px; }
+.cloud-record-picker .picker-choices span { display: block; margin-top: 8px; color: #66736e; font-size: 13px; font-weight: 400; }
+@media (max-width: 480px) { .cloud-record-picker .picker-choices { grid-template-columns: 1fr; } }

@@ -136,12 +136,15 @@ export async function cafeRoute(
   if (resource && !targetUser) {
     await membership(env, actor, cafeId, ["owner", "admin"]);
     const p = pagination(request, "members:" + cafeId + ":" + actor.userId);
-    const rows = await env.DB.prepare(
+    const listQuery = env.DB.prepare(
       "SELECT m.user_id userId,u.name,u.email,m.role,m.status,m.version FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.cafe_id=? AND m.user_id>? ORDER BY m.user_id LIMIT ?",
     )
       .bind(cafeId, p.after, p.limit + 1)
-      .all();
-    return page(rows.results, p, "userId", requestId);
+;
+    const totalsQuery = env.DB.prepare("SELECT count(*) count,sum(CASE WHEN status='active' THEN 1 ELSE 0 END) active,sum(CASE WHEN status='active' AND role IN ('owner','admin') THEN 1 ELSE 0 END) admins,sum(CASE WHEN status='active' AND role='staff' THEN 1 ELSE 0 END) staff FROM memberships WHERE cafe_id=?").bind(cafeId);
+    const results = await env.DB.batch<Record<string,any>>([listQuery,totalsQuery]);
+    const response = await page(results[0].results,p,"userId",requestId).json() as Record<string,unknown>;
+    return Response.json({...response,summary:results[1].results[0]},{headers:{"Cache-Control":"no-store"}});
   }
   await csrf(request, env, actor);
   const input = await body(request);
