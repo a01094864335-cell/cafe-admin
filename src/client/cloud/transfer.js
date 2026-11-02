@@ -1,3 +1,4 @@
+import { sheetFile } from "./sheet-export.js";
 import { scorecards } from "./scorecards.js";
 import { createImportPlan } from "../../shared/import-plan.js";
 const names = {
@@ -71,27 +72,47 @@ export function transferScreen({
     preparedFile = null,
     commitAllowed = false;
   root.innerHTML =
-    '<section class="card"><h2>기존 장부 가져오기</h2><p>빈 카페에 v2 JSON 장부를 가져옵니다. 최대 20MiB이며, 마지막 확인 전까지 새 자료는 장부에 표시되지 않습니다.</p><label>백업 파일<input id="import-file" type="file" accept=".json,application/json"></label><div id="import-preview"></div><div class="form-actions"><button id="import-start" disabled>검증용 업로드</button><button id="import-commit" hidden>합계 확인 후 적용</button><button id="import-cancel" class="secondary" hidden>진행 중인 가져오기 취소</button></div><p id="import-progress" role="status"></p></section><section class="card"><h2>카페 자료 백업</h2><p>현재 카페의 직원별 장부를 JSON으로 내려받습니다. 백업 중에는 이 카페의 장부 저장이 잠시 제한됩니다. 창을 닫으면 최대 5분 후 제한이 해제됩니다.</p><p>공유 장부 v3 형식이며 기존 PC 장부의 v2 가져오기에는 사용할 수 없습니다. 계정 연결·로그인 정보는 포함하지 않습니다.</p><button id="export-start">JSON 백업 만들기</button><button id="export-cancel" class="secondary" hidden>진행 중인 백업 취소</button><div id="backup-download"></div></section>';
+    '<section class="card"><h2>기존 장부 가져오기</h2><p>빈 카페에 v2 JSON 장부를 가져옵니다. 최대 20MiB이며, 마지막 확인 전까지 새 자료는 장부에 표시되지 않습니다.</p><label>백업 파일<input id="import-file" type="file" accept=".json,application/json"></label><div id="import-preview"></div><div class="form-actions"><button id="import-start" disabled>검증용 업로드</button><button id="import-commit" hidden>합계 확인 후 적용</button><button id="import-cancel" class="secondary" hidden>진행 중인 가져오기 취소</button></div><p id="import-progress" role="status"></p></section><section class="card"><h2>카페 자료 백업</h2><p>현재 카페의 직원별 장부를 JSON으로 내려받습니다. 백업 중에는 이 카페의 장부 저장이 잠시 제한됩니다. 창을 닫으면 최대 5분 후 제한이 해제됩니다.</p><p>공유 장부 v3 형식이며 기존 PC 장부의 v2 가져오기에는 사용할 수 없습니다. 계정 연결·로그인 정보는 포함하지 않습니다.</p><p>시트는 현재 카페의 전체 기록을 탭별로 담습니다. 화면 조회 기간·검색과 무관하며 소유자만 내려받을 수 있습니다.</p><button id="sheet-start">시트로 내려받기 (.xlsx)</button><button id="export-start">JSON 백업 만들기</button><button id="export-cancel" class="secondary" hidden>진행 중인 백업 취소</button><div id="backup-download"></div></section>';
   const el = (id) => root.querySelector("#" + id);
   const report = (message, error = false) => {
     if (valid()) status(message, error);
   };
   const table = (summary) => {
     const cards = document.createElement("div");
-    scorecards(cards, [
-      {label:"매출 기록",value:summary.sales?.count ?? 0,unit:"건"},
-      {label:"구매·지출 기록",value:(summary.purchases?.count ?? 0)+(summary.expenses?.count ?? 0),unit:"건"},
-      {label:"근무 기록",value:summary.work_logs?.count ?? 0,unit:"건"},
-      {label:"재고 품목",value:summary.inventory_items?.count ?? 0,unit:"종"},
-    ],"이전·백업 대상 자료의 전체 건수");
-    return cards.innerHTML + '<div class="table-scroll"><table><thead><tr><th>자료</th><th>건수</th><th>합계</th></tr></thead><tbody>' +
-    Object.entries(summary)
-      .map(
-        ([key, v]) =>
-          `<tr><td>${escape(names[key] ?? key)}</td><td>${escape(v.count)}</td><td>${v.total === undefined ? "—" : escape(Number(key === "inventory_items" ? v.total / 100 : v.total).toLocaleString("ko-KR")) + (key === "inventory_items" ? " (수량 합계)" : "원")}</td></tr>`,
-      )
-      .join("") +
-    "</tbody></table></div>";
+    scorecards(
+      cards,
+      [
+        { label: "매출 기록", value: summary.sales?.count ?? 0, unit: "건" },
+        {
+          label: "구매·지출 기록",
+          value:
+            (summary.purchases?.count ?? 0) + (summary.expenses?.count ?? 0),
+          unit: "건",
+        },
+        {
+          label: "근무 기록",
+          value: summary.work_logs?.count ?? 0,
+          unit: "건",
+        },
+        {
+          label: "재고 품목",
+          value: summary.inventory_items?.count ?? 0,
+          unit: "종",
+        },
+      ],
+      "이전·백업 대상 자료의 전체 건수",
+    );
+    return (
+      cards.innerHTML +
+      '<div class="table-scroll"><table><thead><tr><th>자료</th><th>건수</th><th>합계</th></tr></thead><tbody>' +
+      Object.entries(summary)
+        .map(
+          ([key, v]) =>
+            `<tr><td>${escape(names[key] ?? key)}</td><td>${escape(v.count)}</td><td>${v.total === undefined ? "—" : escape(Number(key === "inventory_items" ? v.total / 100 : v.total).toLocaleString("ko-KR")) + (key === "inventory_items" ? " (수량 합계)" : "원")}</td></tr>`,
+        )
+        .join("") +
+      "</tbody></table></div>"
+    );
   };
   const mutation = async (path, method = "POST", data = {}) => {
     const identity = method + path + JSON.stringify(data);
@@ -111,6 +132,7 @@ export function transferScreen({
       !["uploading", "validating", "ready", "failed"].includes(importJob.state);
     el("import-cancel").disabled = busy;
     el("export-start").disabled = busy;
+    el("sheet-start").disabled = busy;
     el("export-cancel").hidden = !exportJob;
     el("export-cancel").disabled = busy;
   }
@@ -277,8 +299,9 @@ export function transferScreen({
       buttons();
     }
   };
-  el("export-start").onclick = async () => {
+  async function prepareExport(format) {
     if (busy) return;
+    el("backup-download").replaceChildren();
     busy = true;
     dirty(true);
     buttons();
@@ -322,9 +345,12 @@ export function transferScreen({
         report(`${names[name] ?? name} 백업 중`);
         await api(path); // Continue the lease only after successful progress.
       }
-      const file = new Blob([JSON.stringify(backup)], {
-        type: "application/json",
-      });
+      const file =
+        format === "xlsx"
+          ? sheetFile(backup)
+          : new Blob([JSON.stringify(backup)], {
+              type: "application/json",
+            });
       if (file.size > 20 * 1024 * 1024)
         throw Error("백업이 20MiB를 초과합니다.");
       await mutation(path + "/complete");
@@ -334,10 +360,10 @@ export function transferScreen({
       if (preparedFile) URL.revokeObjectURL(preparedFile);
       preparedFile = URL.createObjectURL(file);
       el("backup-download").innerHTML =
-        `<p>백업 준비 완료. 아래 링크를 눌러 파일을 보관하세요.</p><a id="download-backup" class="button">JSON 파일 내려받기</a>`;
+        `<p>파일 준비 완료. 아래 링크를 눌러 보관하세요.</p><a id="download-backup" class="button">${format === "xlsx" ? "엑셀 시트 내려받기" : "JSON 파일 내려받기"}</a>`;
       el("download-backup").href = preparedFile;
       el("download-backup").download =
-        `cafe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        `cafe-${format === "xlsx" ? "sheets" : "backup"}-${new Date().toISOString().slice(0, 10)}.${format === "xlsx" ? "xlsx" : "json"}`;
       report(
         "백업을 만들고 저장 제한을 해제했습니다. 파일 다운로드를 완료해 주세요.",
       );
@@ -354,7 +380,9 @@ export function transferScreen({
       busy = false;
       buttons();
     }
-  };
+  }
+  el("export-start").onclick = () => prepareExport("json");
+  el("sheet-start").onclick = () => prepareExport("xlsx");
   el("export-cancel").onclick = async () => {
     if (busy || !exportJob) return;
     busy = true;

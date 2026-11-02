@@ -256,6 +256,17 @@ test(
     assert.equal(backup.tables.sales.length, 4);
     assert.equal(backup.tables.work_logs.length, 2);
     assert.equal("linked_user_id" in backup.tables.employees[0], false);
+    await owner.locator("#sheet-start").click();
+    await owner.getByRole("link", { name: "엑셀 시트 내려받기", exact: true }).waitFor();
+    const sheetDownload = owner.waitForEvent("download");
+    await owner.locator("#download-backup").click();
+    const sheetSaved = await sheetDownload;
+    assert.match(sheetSaved.suggestedFilename(), /\.xlsx$/);
+    const sheetBytes = await readFile(await sheetSaved.path());
+    assert.equal(sheetBytes.readUInt32LE(0), 0x04034b50);
+    assert.ok(sheetBytes.includes(Buffer.from("매출")));
+    assert.equal((await owner.evaluate(async () => (await fetch('/api/v1/cafes/' + document.querySelector('#cafe').value + '/exports')).json())).data.length, 0);
+
     await owner.screenshot({
       path: "/tmp/cafe-transfer-desktop.png",
       fullPage: true,
