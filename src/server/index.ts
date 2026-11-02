@@ -1,3 +1,6 @@
+import type { ExecutionContext } from "@cloudflare/workers-types";
+import { sheetsRoute, sheetsCallback } from "./routes/google-sheets.ts";
+import { syncCafe, syncPending } from "./services/google-sheets.ts";
 import { auditRoute } from "./routes/audit.ts";
 import {
   cleanupExpired,
@@ -17,9 +20,10 @@ import { authRoute } from "./auth/routes.ts";
 import { cafeRoute } from "./services/memberships.ts";
 import { invitationRoute } from "./services/invitations.ts";
 export default {
-  async scheduled(_event: unknown, env: Env) {
+  async scheduled(event: { cron?: string }, env: Env) {
     try {
-      await cleanupExpired(env);
+      if (event.cron !== "* * * * *") await cleanupExpired(env);
+      await syncPending(env);
     } catch {
       console.error(
         JSON.stringify({ event: "cleanup_failed", code: "CLEANUP_FAILED" }),
@@ -27,7 +31,11 @@ export default {
       throw new Error("CLEANUP_FAILED");
     }
   },
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx?: ExecutionContext,
+  ): Promise<Response> {
     const path = new URL(request.url).pathname;
     if (!/^\/(api|auth)(\/|$)/.test(path)) return env.ASSETS.fetch(request);
     const requestId = crypto.randomUUID();
@@ -37,7 +45,9 @@ export default {
     request = new Request(request, { headers });
     try {
       const response =
+        (await sheetsCallback(request, env)) ??
         (await authRoute(request, env, requestId)) ??
+        (await sheetsRoute(request, env, requestId)) ??
         (await cafeRoute(request, env, requestId)) ??
         (await invitationRoute(request, env, requestId)) ??
         (await ledgerRoute(request, env, requestId)) ??
@@ -60,6 +70,30 @@ export default {
         );
       response.headers.set("Referrer-Policy", "no-referrer");
       response.headers.set("X-Request-ID", requestId);
+      if (
+        ctx &&
+        path === "/auth/google/callback" &&
+        response.headers.get("Location")?.includes("?sheet=connected")
+      ) {
+        ctx.waitUntil(
+          syncPending(env).catch(() => console.warn("sheet_sync_deferred")),
+        );
+      }
+      if (
+        ctx &&
+        response.ok &&
+        ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
+      ) {
+        const cafe = path.match(
+          /^\/api\/v1\/cafes\/([A-Za-z0-9_-]+)(?:\/|$)/,
+        )?.[1];
+        if (cafe)
+          ctx.waitUntil(
+            syncCafe(env, cafe).catch(() =>
+              console.warn("sheet_sync_deferred"),
+            ),
+          );
+      }
       return response;
     } catch (error) {
       const safe = operationalError(error),
