@@ -26,3 +26,15 @@ Limits: 10,000 rows per table, 2MiB serialized batch, five pending cafes per cro
 ## Verification
 
 `tests/server/google-sheets.d1.mjs` exercises owner/CSRF restrictions, offline narrow scope, encrypted token isolation, committed outbox revisions, same-file reconnect, one-use OAuth, account mismatch, active-dataset isolation, simultaneous sync, overlapping edits, soft-delete clearing, formula-like text, failed grants and owner changes. Existing cloud browser integration checks the new disconnected panel alongside JSON/XLSX downloads. Run `pnpm check:backend` and `PLAYWRIGHT_CHANNEL=chrome pnpm test:cloud` before deployment.
+
+## Deployment result (2026-11-02)
+
+- Code commit: `7a0dfb0b86a12192cc87e24d9b0862f2abc32bb6`.
+- Worker version: `37cc7c92-c7f1-4886-af5c-297ff802928d`.
+- Previous Worker version: `862b6c1b-aaae-4475-ac5d-7cadf9f28f11`.
+- Pre-migration D1 bookmark: `00000360-00000000-00005117-2191719c237546d6ba4a8af4c7b380f9`.
+- 0006 applied; hourly cleanup and minute sync crons deployed. Live JS and privacy page byte-match local build.
+- Local validation: 21 unit, 7 server, 55 D1, 2 Worker and 1 Chrome integration tests passed; typecheck/build/dry-run passed. GitHub PR workflow 41460460387 passed.
+- Sheets API enabled; OAuth scope declarations and homepage/privacy URLs configured. Actual Google consent and production publishing are still pending.
+- Logged-in account is an administrator (not owner) of the requested store; changing connection eligibility is pending the user's preference. No actual Google spreadsheet has been created or business data sent to Google Sheets yet.
+- Validation moved to `/tmp/cafe-google-sheet-final` because iCloud marked working files dataless. Same lockfile versions were used. Initial failed attempts were filesystem/spawn timeouts, not passing tests.
