@@ -1,3 +1,4 @@
+import { scorecards } from "./scorecards.js";
 export function inventoryScreen({
   root,
   cafe,
@@ -14,7 +15,7 @@ export function inventoryScreen({
     retry = null,
     saving = false,
     read = 0;
-  root.innerHTML = `<section class="card"><h2 id="inventory-title">재고 품목 등록</h2><form id="inventory-form"><label>품목명<input name="name" required maxlength="200"></label><label>단위<input name="unit" required maxlength="40" placeholder="kg, 개, L"></label><label>초기 수량<input name="quantity" type="number" step="0.01" value="0" required></label><label>최소 수량<input name="minimum" type="number" step="0.01" value="0" required></label><label>단가(원)<input name="cost" type="number" step="1"></label><label>공급처<input name="supplier" maxlength="200"></label><div class="form-actions"><button>저장</button><button type="button" id="inventory-reset" class="secondary">입력 지우기</button></div></form></section><section class="card"><h2>재고 현황</h2><p>수량 변경은 이동 이력으로 보존됩니다.</p><div id="inventory-records"></div><button id="inventory-more" class="secondary" hidden>더 보기</button></section>`;
+  root.innerHTML = `<section class="card"><h2 id="inventory-title">재고 품목 등록</h2><form id="inventory-form"><label>품목명<input name="name" required maxlength="200"></label><label>단위<input name="unit" required maxlength="40" placeholder="kg, 개, L"></label><label>초기 수량<input name="quantity" type="number" step="0.01" value="0" required></label><label>최소 수량<input name="minimum" type="number" step="0.01" value="0" required></label><label>단가(원)<input name="cost" type="number" step="1"></label><label>공급처<input name="supplier" maxlength="200"></label><div class="form-actions"><button>저장</button><button type="button" id="inventory-reset" class="secondary">입력 지우기</button></div></form></section><section class="card"><h2>재고 현황</h2><label>정렬<select id="inventory-sort"><option value="newest">최근일</option><option value="oldest">최초일</option><option value="highest">최고액 (단가)</option><option value="lowest">최소액 (단가)</option></select></label><p>수량 변경은 이동 이력으로 보존됩니다.</p><div id="inventory-scorecards" aria-live="polite"></div><div id="inventory-records"></div><button id="inventory-more" class="secondary" hidden>더 보기</button></section>`;
   const form = root.querySelector("form"),
     records = root.querySelector("#inventory-records");
   function reset() {
@@ -25,6 +26,7 @@ export function inventoryScreen({
     root.querySelector("#inventory-title").textContent = "재고 품목 등록";
     dirty(false);
   }
+  root.querySelector("#inventory-sort").onchange = () => refresh();
   form.oninput = () => dirty(true);
   root.querySelector("#inventory-reset").onclick = () => {
     if (canLeave()) reset();
@@ -40,17 +42,24 @@ export function inventoryScreen({
     const ticket = ++read;
     try {
       const r = await api(
-        `/api/v1/cafes/${cafe}/inventory/items?limit=50${append && cursor ? "&cursor=" + encodeURIComponent(cursor) : ""}`,
+        `/api/v1/cafes/${cafe}/inventory/items?limit=50&sort=${root.querySelector("#inventory-sort").value}${append && cursor ? "&cursor=" + encodeURIComponent(cursor) : ""}`,
       );
       if (!valid() || ticket !== read) return;
       items = append ? [...items, ...r.data] : r.data;
       cursor = r.nextCursor;
+      if(r.summary) scorecards(root.querySelector("#inventory-scorecards"),[
+        {label:"전체 품목",value:r.summary.count,unit:"종"},
+        {label:"재고 부족",value:r.summary.lowStock ?? 0,unit:"종",hint:"최소 수량 이하"},
+        {label:"재고금액",value:Math.round(r.summary.value ?? 0),unit:"원",hint:"현재 수량 × 입력 단가"},
+        {label:"단가 미입력",value:r.summary.missingCost ?? 0,unit:"종",hint:"재고금액에서 제외"},
+      ],"전체 재고 품목 기준 · 서로 다른 단위의 수량은 합산하지 않습니다");
       draw();
       status("서버의 최신 재고입니다.");
     } catch (e) {
       if (valid()) {
+        root.querySelector("#inventory-scorecards")?.replaceChildren();
         if (["FORBIDDEN", "NOT_FOUND", "UNAUTHENTICATED"].includes(e.code))
-          records.replaceChildren();
+          { records.replaceChildren(); root.querySelector("#inventory-scorecards").replaceChildren(); }
         status(e.message, true);
       }
     }

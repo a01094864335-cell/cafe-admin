@@ -1,3 +1,4 @@
+import { scorecards } from "./scorecards.js";
 export function membersScreen({
   root,
   cafe,
@@ -15,7 +16,7 @@ export function membersScreen({
     busy = false,
     retry = null,
     lastInvite = null;
-  root.innerHTML = `<section class="card"><h2>멤버 초대</h2><form id="invite-form"><label class="wide">Google 계정 이메일<input name="email" type="email" required maxlength="320"></label><label>역할<select name="role"><option value="staff">직원</option>${cafe.role === "owner" ? '<option value="admin">관리자</option>' : ""}</select></label><button>초대 링크 만들기</button></form><p>초대받은 이메일로 로그인해야 참여할 수 있습니다. 링크를 직접 전달해 주세요.</p><div id="invite-result"></div></section><section class="card"><h2>함께하는 멤버</h2><div id="member-records"></div><button id="member-more" class="secondary" hidden>더 보기</button></section>${cafe.role === "owner" ? '<section class="card"><h2>카페 설정</h2><form id="cafe-settings"><label>카페 이름<input name="name" required maxlength="100"></label><label>시간대<input name="timezone" required placeholder="Asia/Seoul"></label><button>저장</button></form></section>' : ""}`;
+  root.innerHTML = `<section class="card"><h2>멤버 초대</h2><form id="invite-form"><label class="wide">Google 계정 이메일<input name="email" type="email" required maxlength="320"></label><label>역할<select name="role"><option value="staff">직원</option>${cafe.role === "owner" ? '<option value="admin">관리자</option>' : ""}</select></label><button>초대 링크 만들기</button></form><p>초대받은 이메일로 로그인해야 참여할 수 있습니다. 링크를 직접 전달해 주세요.</p><div id="invite-result"></div></section><section class="card"><h2>함께하는 멤버</h2><div id="member-scorecards" aria-live="polite"></div><div id="member-records"></div><button id="member-more" class="secondary" hidden>더 보기</button></section>${cafe.role === "owner" ? '<section class="card"><h2>카페 설정</h2><form id="cafe-settings"><label>카페 이름<input name="name" required maxlength="100"></label><label>시간대<input name="timezone" required placeholder="Asia/Seoul"></label><button>저장</button></form></section>' : ""}`;
   const form = root.querySelector("#invite-form"),
     records = root.querySelector("#member-records");
   form.oninput = () => dirty(true);
@@ -75,10 +76,17 @@ export function membersScreen({
       if (!valid() || ticket !== read) return;
       rows = append ? [...rows, ...r.data] : r.data;
       cursor = r.nextCursor;
+      if(r.summary) scorecards(root.querySelector("#member-scorecards"),[
+        {label:"전체 멤버 기록",value:r.summary.count,unit:"명"},
+        {label:"참여 중",value:r.summary.active ?? 0,unit:"명"},
+        {label:"소유자·관리자",value:r.summary.admins ?? 0,unit:"명"},
+        {label:"직원",value:r.summary.staff ?? 0,unit:"명"},
+      ],"현재 카페의 전체 멤버 기준");
       draw();
       status("현재 멤버 권한입니다.");
     } catch (e) {
       if (valid()) {
+        root.querySelector("#member-scorecards")?.replaceChildren();
         if (["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND"].includes(e.code))
           records.replaceChildren();
         status(e.message, true);

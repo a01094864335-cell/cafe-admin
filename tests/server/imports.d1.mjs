@@ -40,8 +40,8 @@ test("missing hours and break inputs remain missing, including payroll calculati
     null,
   );
   assert.equal(
-    ok(await request("u1", base + "work-logs?employeeId=" + employee.id))[0]
-      .breakMinutes,
+    ok(await request("u1", base + "work-logs?employeeId=" + employee.id))
+      .find(r => r.businessDate === f.payroll[0].date).breakMinutes,
     null,
   );
   const dashboard = ok(

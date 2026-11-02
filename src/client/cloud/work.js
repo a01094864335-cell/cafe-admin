@@ -1,3 +1,4 @@
+import { scorecards } from "./scorecards.js";
 export function workScreen({
   root,
   cafe,
@@ -8,6 +9,7 @@ export function workScreen({
   valid,
   dirty,
   canLeave,
+  onChange = () => {},
 }) {
   let employees = [],
     selected = "",
@@ -16,12 +18,14 @@ export function workScreen({
     editing = null,
     retry = null,
     saving = false,
-    read = 0;
+    read = 0,
+    registering = false,
+    createdEmployee = null;
   const date = () =>
     new Date().toLocaleDateString("sv-SE", { timeZone: cafe.timezone });
   const base = `/api/v1/cafes/${cafe.id}/`,
     resource = staff ? "my/work-logs" : "work-logs";
-  root.innerHTML = `${staff ? "" : `<section class="card"><h2>직원 관리</h2><form id="employee-form"><label>이름<input name="name" maxlength="200" required></label><label>연결 계정<select name="linkedUserId"><option value="">계정 없이 관리</option></select></label><label>입사일<input name="hireDate" type="date"></label><label>퇴사일<input name="endDate" type="date"></label><button>직원 등록</button><button type="button" id="employee-edit" class="secondary">선택 직원 수정</button></form></section>`}<section class="card"><h2>근무 기록</h2>${staff ? "" : '<label>직원<select id="employee-select"></select></label>'}<form id="work-form"><label>근무일<input name="businessDate" type="date" required></label><label>시작<input name="startTime" type="time"></label><label>종료<input name="endTime" placeholder="18:00 또는 24:00" pattern="([01][0-9]|2[0-3]):[0-5][0-9]|24:00"></label><label>휴게(분)<input name="breakMinutes" type="number" min="0" max="1440" step="1" value="0" required></label><label class="wide">메모<input name="note" maxlength="2000"></label><div class="form-actions"><button>저장</button><button id="work-reset" type="button" class="secondary">입력 지우기</button></div></form></section><section class="card"><h2>근무 내역</h2><div class="filters"><label>시작일<input id="work-from" type="date"></label><label>종료일<input id="work-to" type="date"></label><button id="work-filter" class="secondary">조회</button></div><div id="work-records"></div><button id="work-more" hidden class="secondary">더 보기</button></section>`;
+  root.innerHTML = `${staff ? "" : `<section class="card"><div class="section-head"><h2>직원 관리</h2><button type="button" id="employee-new" class="secondary">신규 직원 추가</button></div><form id="employee-form"><label>이름<input name="name" maxlength="200" required></label><label>연결 계정<select name="linkedUserId"><option value="">계정 없이 관리</option></select></label><label>입사일<input name="hireDate" type="date"></label><label>퇴사일<input name="endDate" type="date"></label><fieldset id="employee-payroll" hidden disabled class="wide"><legend>시급 · 예상 근무 주기</legend><label>시급(원)<input name="hourlyRate" type="number" min="1" step="1" required></label><label>주 약정 근무시간<input name="weeklyHours" type="number" min="0" max="40" step="0.01" required></label><label>근무 주기 시작일<input name="firstWeek" type="date" required></label><label>주휴일<select name="holidayDay" required><option value="">선택하세요</option>${["일", "월", "화", "수", "목", "금", "토"].map(d => `<option>${d}</option>`).join("")}</select></label><label>통상 근로자 주 근무일수<input name="normalDays" type="number" min="0.01" max="7" step="0.01" value="5" required></label><p>시작일부터 매주 반복되는 약정 시간을 설정합니다. 주휴수당은 주별 개근·재직 확인 후 비용에 합산됩니다.</p></fieldset><button id="employee-create" hidden>직원 등록</button><button type="button" id="employee-edit" class="secondary">선택 직원 수정</button></form></section>`}<section class="card"><h2>근무 기록</h2>${staff ? "" : '<label>직원<select id="employee-select"></select></label>'}<form id="work-form"><label>근무일<input name="businessDate" type="date" required></label><label>시작<input name="startTime" type="time"></label><label>종료<input name="endTime" placeholder="18:00 또는 24:00" pattern="([01][0-9]|2[0-3]):[0-5][0-9]|24:00"></label><label>휴게(분)<input name="breakMinutes" type="number" min="0" max="1440" step="1" value="0" required></label><label class="wide">메모<input name="note" maxlength="2000"></label><div class="form-actions"><button>저장</button><button id="work-reset" type="button" class="secondary">입력 지우기</button></div></form></section><section class="card"><h2>근무 내역</h2><div class="filters"><label>시작일<input id="work-from" type="date"></label><label>종료일<input id="work-to" type="date"></label><label>정렬<select id="work-sort"><option value="newest">최근일</option><option value="oldest">최초일</option></select></label><button id="work-filter" class="secondary">조회</button></div><div id="work-scorecards" aria-live="polite"></div><div id="work-records"></div><button id="work-more" hidden class="secondary">더 보기</button></section>`;
   const form = root.querySelector("#work-form"),
     records = root.querySelector("#work-records");
   form.elements.businessDate.value = date();
@@ -79,7 +83,7 @@ export function workScreen({
       fillEmployee();
       refresh();
     };
-    fillEmployee();
+    if (!registering) fillEmployee();
   }
   function fillEmployee() {
     if (staff) return;
@@ -93,6 +97,7 @@ export function workScreen({
     if (saving || !valid() || (!staff && !selected)) return;
     const ticket = ++read,
       q = new URLSearchParams({ limit: "50" });
+    q.set("sort", root.querySelector("#work-sort").value);
     if (!staff) q.set("employeeId", selected);
     for (const k of ["from", "to"]) {
       const v = root.querySelector("#work-" + k).value;
@@ -104,10 +109,17 @@ export function workScreen({
       if (!valid() || ticket !== read) return;
       rows = append ? [...rows, ...r.data] : r.data;
       cursor = r.nextCursor;
+      if (r.summary) scorecards(root.querySelector("#work-scorecards"),[
+        {label:"근무 기록",value:r.summary.count,unit:"건"},
+        {label:"근무한 날짜",value:r.summary.days,unit:"일"},
+        {label:"총 실근로",value:`${Math.floor(r.summary.minutes/60)}시간 ${r.summary.minutes%60}분`},
+        {label:"확인 필요",value:r.summary.incomplete,unit:"건",hint:"출퇴근·휴게 미입력 또는 시간 오류"},
+      ]);
       draw();
       status("최신 근무 기록입니다.");
     } catch (e) {
       if (valid()) {
+        root.querySelector("#work-scorecards")?.replaceChildren();
         if (
           [
             "FORBIDDEN",
@@ -116,7 +128,7 @@ export function workScreen({
             "EMPLOYEE_NOT_LINKED",
           ].includes(e.code)
         )
-          records.replaceChildren();
+          { records.replaceChildren(); root.querySelector("#work-scorecards").replaceChildren(); }
         status(e.message, true);
       }
     }
@@ -159,7 +171,7 @@ export function workScreen({
             if (valid()) status(e.message, true);
           } finally {
             saving = false;
-            if (success && valid()) refresh();
+            if (success && valid()) { refresh(); onChange(); }
           }
         }),
     );
@@ -187,32 +199,70 @@ export function workScreen({
     } finally {
       saving = false;
       for (const el of form.elements) el.disabled = false;
-      if (success && valid()) refresh();
+      if (success && valid()) { refresh(); onChange(); }
     }
   };
   if (!staff) {
     const ef = root.querySelector("#employee-form");
     for (const field of ef.elements) field.disabled = true;
     ef.oninput = () => dirty(true);
+    const payrollFields = root.querySelector("#employee-payroll");
+    root.querySelector("#employee-new").onclick = () => {
+      if (saving || !canLeave()) return;
+      registering = true;
+      createdEmployee = null;
+      ef.reset();
+      ef.elements.hireDate.required = true;
+      ef.elements.hireDate.value = date();
+      ef.elements.firstWeek.value = date();
+      payrollFields.hidden = payrollFields.disabled = false;
+      root.querySelector("#employee-create").hidden = false;
+      root.querySelector("#employee-edit").hidden = true;
+      ef.elements.name.focus();
+      dirty(true);
+    };
     const saveEmployee = async (update) => {
       if (saving) return;
-      const data = Object.fromEntries(new FormData(ef));
+      if (!ef.reportValidity()) return;
+      const values = Object.fromEntries(new FormData(ef));
+      const data = Object.fromEntries(["name", "linkedUserId", "hireDate", "endDate"].map(k => [k, values[k]]));
       for (const k of ["linkedUserId", "hireDate", "endDate"]) data[k] ||= null;
       const e = employees.find((e) => e.id === selected);
       if (update && !e) return;
       if (update) data.expectedVersion = e.version;
       saving = true;
       try {
-        const r = await write(
+        const r = !update && createdEmployee ? createdEmployee : await write(
           base + "employees" + (update ? "/" + e.id : ""),
           update ? "PATCH" : "POST",
           data,
         );
         selected = r.data.id;
+        if (!update) {
+          createdEmployee = r;
+          await write(base + "employees/" + selected + "/payroll-settings", "PATCH", {
+            effectiveFrom: data.hireDate,
+            effectiveTo: data.endDate,
+            firstWeek: values.firstWeek,
+            weeklyHours: Number(values.weeklyHours),
+            holidayDay: values.holidayDay,
+            normalDays: Number(values.normalDays),
+            calculationStart: data.hireDate,
+            calculationEnd: data.endDate || `${Number(data.hireDate.slice(0, 4)) + 1}-12-31`,
+            rates: { [data.hireDate.slice(0, 4)]: Number(values.hourlyRate) },
+          });
+          createdEmployee = null;
+          registering = false;
+          payrollFields.hidden = payrollFields.disabled = true;
+          ef.elements.hireDate.required = false;
+          root.querySelector("#employee-create").hidden = true;
+          root.querySelector("#employee-edit").hidden = false;
+        }
         dirty(false);
         retry = null;
         if (valid()) {
           await loadEmployees();
+          onChange();
           status("직원 정보를 저장했습니다.");
         }
       } catch (e) {
@@ -241,12 +291,14 @@ export function workScreen({
             .join("");
         await loadEmployees();
         for (const field of ef.elements) field.disabled = false;
+        payrollFields.disabled = !registering;
         refresh();
       } catch (e) {
         if (valid()) status(e.message, true);
       }
     })();
   } else refresh();
+  root.querySelector("#work-sort").onchange = () => refresh();
   root.querySelector("#work-filter").onclick = () => refresh();
   root.querySelector("#work-more").onclick = () => refresh(true);
   return refresh;

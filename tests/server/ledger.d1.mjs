@@ -155,14 +155,14 @@ test("ledger date pagination binds filters, cafe, active dataset and actor", asy
     );
   const first = await request(
     "u1",
-    "/api/v1/cafes/a/sales?limit=1&from=2026-10-02&to=2026-10-03",
+    "/api/v1/cafes/a/sales?sort=oldest&limit=1&from=2026-10-02&to=2026-10-03",
   );
   ok(first);
   assert.equal(first.body.data[0].businessDate, "2026-10-02");
   const cursor = encodeURIComponent(first.body.nextCursor);
   const second = await request(
     "u1",
-    "/api/v1/cafes/a/sales?limit=1&from=2026-10-02&to=2026-10-03&cursor=" +
+    "/api/v1/cafes/a/sales?sort=oldest&limit=1&from=2026-10-02&to=2026-10-03&cursor=" +
       cursor,
   );
   ok(second);
@@ -172,4 +172,63 @@ test("ledger date pagination binds filters, cafe, active dataset and actor", asy
     (await request("u1", "/api/v1/cafes/a/sales?cursor=" + cursor)).status,
     400,
   );
+});
+
+test("cost categories filter before pagination and bind cursors to category", async (t) => {
+  const { request } = await setup(t);
+  for (const item of ["화장지", "멸균우유", "키친타올", "명함 디자인", "분류불명"]) {
+    ok(await request("u1", "/api/v1/cafes/a/expenses", "POST", {
+      businessDate: "2026-10-10", item, vendor: "쿠팡", amount: 100,
+    }), 201);
+  }
+  const url = "/api/v1/cafes/a/expenses?category=" + encodeURIComponent("청소·위생용품") + "&limit=1";
+  const firstResult = await request("u1", url);
+  ok(firstResult);
+  const first = firstResult.body;
+  assert.equal(first.data.length, 1);
+  assert.equal(first.data[0].category, "청소·위생용품");
+  assert.ok(first.nextCursor);
+  const secondResult = await request("u1", url + "&cursor=" + encodeURIComponent(first.nextCursor));
+  ok(secondResult);
+  const second = secondResult.body;
+  assert.equal(second.data.length, 1);
+  assert.notEqual(first.data[0].id, second.data[0].id);
+  assert.equal(second.nextCursor, null);
+  assert.equal((await request("u1", "/api/v1/cafes/a/expenses?category=" + encodeURIComponent("홍보·인쇄") + "&cursor=" + encodeURIComponent(first.nextCursor))).status, 400);
+  assert.equal((await request("u1", "/api/v1/cafes/a/expenses?category=invalid")).status, 400);
+  assert.equal((await request("u3", url)).status, 404);
+});
+
+
+test("ledger sort defaults descending and supports amounts across tied pages", async (t) => {
+  const { request } = await setup(t);
+  for (const [businessDate, amount] of [["2026-10-01",100],["2026-10-02",500],["2026-10-03",500],["2026-10-04",-50]]) {
+    ok(await request("u1", "/api/v1/cafes/a/expenses", "POST", {businessDate, amount, item:"정렬 테스트"}),201);
+  }
+  const newest = await request("u1", "/api/v1/cafes/a/expenses");
+  assert.equal(ok(newest)[0].businessDate,"2026-10-04");
+  for (const [sort, expected] of [["highest",[500,500,100,-50]],["lowest",[-50,100,500,500]]]) {
+    let cursor = null;
+    const amounts = [], ids = new Set();
+    do {
+      const response = await request("u1", "/api/v1/cafes/a/expenses?limit=1&sort="+sort+(cursor ? "&cursor="+encodeURIComponent(cursor):""));
+      for(const row of ok(response)) {amounts.push(row.amount);ids.add(row.id);}
+      cursor=response.body.nextCursor;
+    } while(cursor);
+    assert.deepEqual(amounts,expected);
+    assert.equal(ids.size,4);
+  }
+});
+
+test("scorecards aggregate all filtered rows rather than the current page", async (t) => {
+  const {request} = await setup(t);
+  for(const [item,amount] of [["키친타올",100],["화장지",200],["세정제",-50],["명함",900]]) ok(await request("u1","/api/v1/cafes/a/expenses","POST",{businessDate:"2026-10-10",item,amount}),201);
+  const url="/api/v1/cafes/a/expenses?limit=1&category="+encodeURIComponent("청소·위생용품");
+  const first=await request("u1",url); ok(first);
+  assert.equal(first.body.data.length,1);
+  assert.deepEqual(first.body.summary,{count:3,recorded:3,total:250,minimum:-50,maximum:200,refunds:-50});
+  const next=await request("u1",url+"&cursor="+encodeURIComponent(first.body.nextCursor));ok(next);
+  assert.deepEqual(next.body.summary,first.body.summary);
+  const empty=await request("u1",url+"&from=2026-01-01&to=2026-01-02");ok(empty);
+  assert.equal(empty.body.summary.total,0);assert.equal(empty.body.summary.maximum,null);
 });

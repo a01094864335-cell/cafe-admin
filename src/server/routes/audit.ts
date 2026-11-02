@@ -42,21 +42,23 @@ export async function auditRoute(
       fail(400, "VALIDATION_ERROR");
     }
   }
-  const rows = (
-    await env.DB.prepare(
+  const listQuery = env.DB.prepare(
       `SELECT a.id,a.actor_id actorId,u.name actorName,a.target,a.action,a.created_at createdAt,a.request_id requestId
     FROM audit_logs a JOIN users u ON u.id=a.actor_id
     WHERE a.cafe_id=? AND (a.created_at,a.id)<(?,?) ORDER BY a.created_at DESC,a.id DESC LIMIT ?`,
     )
       .bind(cafeId, date, id, limit + 1)
-      .all<Record<string, any>>()
-  ).results;
+;
+  const totalsQuery = env.DB.prepare("SELECT count(*) count,count(DISTINCT actor_id) actors,max(created_at) latest,sum(CASE WHEN action LIKE '%.delete' THEN 1 ELSE 0 END) deletions FROM audit_logs WHERE cafe_id=?").bind(cafeId);
+  const results = await env.DB.batch<Record<string,any>>([listQuery,totalsQuery]);
+  const rows = results[0].results, summary = results[1].results[0];
   await membership(env, actor, cafeId, ["owner", "admin"]);
   const data = rows.slice(0, limit).map((r) => ({ ...r, outcome: "success" }));
   const last = rows[Math.min(limit, rows.length) - 1];
   return Response.json(
     {
       data,
+      summary,
       nextCursor:
         rows.length > limit
           ? btoa(

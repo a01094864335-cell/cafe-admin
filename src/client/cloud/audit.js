@@ -1,9 +1,10 @@
+import { scorecards } from "./scorecards.js";
 export function auditScreen({ root, cafe, api, escape, status, valid }) {
   let cursor = null,
     rows = [],
     loading = false;
   root.innerHTML =
-    '<section class="card"><h2>변경 이력</h2><p>저장된 변경과 작업자를 확인합니다. 실패한 요청은 화면에 표시된 요청 번호로 문의해 주세요.</p><div id="audit-rows"></div><button id="audit-more" class="secondary" hidden>이전 이력</button></section>';
+    '<section class="card"><h2>변경 이력</h2><p>저장된 변경과 작업자를 확인합니다. 실패한 요청은 화면에 표시된 요청 번호로 문의해 주세요.</p><div id="audit-scorecards" aria-live="polite"></div><div id="audit-rows"></div><button id="audit-more" class="secondary" hidden>이전 이력</button></section>';
   const resources = {
     sales: "매출",
     purchases: "매입",
@@ -60,6 +61,12 @@ export function auditScreen({ root, cafe, api, escape, status, valid }) {
           (append && cursor ? "?cursor=" + encodeURIComponent(cursor) : ""),
       );
       if (!valid()) return;
+      if(result.summary) scorecards(root.querySelector("#audit-scorecards"),[
+        {label:"저장된 변경",value:result.summary.count,unit:"건"},
+        {label:"작업자",value:result.summary.actors,unit:"명"},
+        {label:"삭제 작업",value:result.summary.deletions ?? 0,unit:"건"},
+        {label:"최근 변경",value:result.summary.latest ? new Date(result.summary.latest).toLocaleString("ko-KR",{timeZone:cafe.timezone}) : null},
+      ],"현재 카페의 전체 변경 이력 기준");
       rows = append ? rows.concat(result.data) : result.data;
       cursor = result.nextCursor;
       root.querySelector("#audit-rows").innerHTML = rows.length

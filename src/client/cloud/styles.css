@@ -390,3 +390,11 @@ details li {
 #settings-list {
   margin: 15px 0;
 }
+
+.scorecards { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 20px 0 8px; }
+.scorecard { background: #f6f9f7; border: 1px solid #e0e8e3; border-radius: 14px; padding: 18px; min-width: 0; }
+.scorecard > span { color: #607168; font-size: 13px; }
+.scorecard strong { display: block; font-size: 25px; margin-top: 10px; font-weight: 650; overflow-wrap: anywhere; }
+.scorecard small { margin-left: 5px; font-size: 13px; font-weight: 400; }
+.scorecard p,.scorecard-caption { font-size: 12px; color: #718078; margin: 8px 0; }
+@media(max-width:480px) { .scorecards { grid-template-columns: repeat(2,minmax(0,1fr)); } .scorecard { padding: 14px; } .scorecard strong {font-size: 21px;} }
